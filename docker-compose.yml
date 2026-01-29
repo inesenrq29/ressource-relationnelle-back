@@ -7,7 +7,7 @@ services:
     environment:
       MARIADB_ROOT_PASSWORD: rootpass
       MARIADB_DATABASE: rrDb
-      MARIADB_USER: root
+      MARIADB_USER: rruser
       MARIADB_PASSWORD: password
     volumes:
       - mariadb_data:/var/lib/mysql
