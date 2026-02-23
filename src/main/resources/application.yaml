@@ -1,3 +1,6 @@
 spring:
   application:
     name: ressourceRelationnelle
+    jpa:
+      hibernate:
+      ddl-auto: none
