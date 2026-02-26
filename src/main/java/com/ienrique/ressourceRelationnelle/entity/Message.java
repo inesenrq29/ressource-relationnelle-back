@@ -5,7 +5,6 @@ import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.w3c.dom.Text;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,6 +12,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -32,8 +32,9 @@ public class Message {
   @Column(name = "title_type", nullable = false, length = 100)
   private String titleType;
 
+  @Lob
   @Column(name = "message_description")
-  private Text messageDescription;
+  private String messageDescription;
 
   @CreationTimestamp
   @Column(name = "message_created_at", nullable = false, updatable = false)

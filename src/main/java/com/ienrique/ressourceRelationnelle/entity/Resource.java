@@ -3,12 +3,11 @@ package com.ienrique.ressourceRelationnelle.entity;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.w3c.dom.Text;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,8 +32,9 @@ public abstract class Resource {
   @Column(name = "resource_title", nullable = false)
   private String resourceTitle;
 
+  @Lob
   @Column(name = "resource_description")
-  private Text resourceDescription;
+  private String resourceDescription;
 
   @Column(name = "status", nullable = false)
   private String status;
