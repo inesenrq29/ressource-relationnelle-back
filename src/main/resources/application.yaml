@@ -1,3 +1,17 @@
 spring:
   application:
     name: ressourceRelationnelle
+
+  datasource:
+    url: jdbc:mariadb://localhost:3306/rrDb
+    username: rruser
+    password: password
+    driver-class-name: org.mariadb.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
