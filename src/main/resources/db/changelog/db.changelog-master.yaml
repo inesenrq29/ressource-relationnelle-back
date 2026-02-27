@@ -1,3 +1,5 @@
 databaseChangeLog:
   - include:
       file: db/changelog/001_init_schema.sql
+  - include:
+      file: db/changelog/002_fix_resource_naming.sql
