@@ -81,3 +81,24 @@ ALTER TABLE Game
 
 ALTER TABLE PasswordResetToken
     MODIFY COLUMN type ENUM('RESET_PASSWORD','EMAIL_VERIFICATION') NOT NULL;
+
+ALTER TABLE Friend
+    ADD COLUMN requesterUserId CHAR(36) NOT NULL,
+    ADD COLUMN friendReceiverUserId CHAR(36) NOT NULL;
+
+ALTER TABLE Friend
+    ADD CONSTRAINT fk_friend_requester
+        FOREIGN KEY (requesterUserId)
+            REFERENCES AppUser(appUserId)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE;
+
+ALTER TABLE Friend
+    ADD CONSTRAINT fk_friend_receiver
+        FOREIGN KEY (friendReceiverUserId)
+            REFERENCES AppUser(appUserId)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE;
+
+ALTER TABLE Friend
+    ADD UNIQUE KEY uq_friend_pair (requesterUserId, friendReceiverUserId);
