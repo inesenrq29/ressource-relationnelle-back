@@ -3,3 +3,7 @@ databaseChangeLog:
       file: db/changelog/001_init_schema.sql
   - include:
       file: db/changelog/002_fix_favorite_and_link_resources.sql
+  - include:
+      file: db/changelog/003_fix_pdf_weight_unique.sql
+  - include:
+      file: db/changelog/004_create_resource_tag_table.sql
