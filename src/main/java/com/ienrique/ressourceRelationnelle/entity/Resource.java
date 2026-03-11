@@ -33,10 +33,10 @@ public abstract class Resource {
   private UUID resourceId;
 
   @Column(name = "resourceIsActive", nullable = false)
-  private boolean resourceIsActive = true;
+  private boolean resourceIsActive = true; // ressource activée ou désactivée
 
   @Column(name = "resourceIsUsed", nullable = false)
-  private boolean resourceIsUsed;
+  private boolean resourceIsUsed; // ressource exploitée ou non
 
   @Column(name = "resourceTitle", nullable = false)
   private String resourceTitle;
