@@ -19,21 +19,18 @@ public class UpdateResourceDto {
 
   @NotBlank
   @Size(max = 255)
-  private String title;
+  private String resourceTitle;
 
-  @NotBlank
   @Size(max = 5000)
-  private String description;
+  private String resourceDescription;
 
-  @NotNull private List<@NotBlank @Size(max = 50) String> tags;
+  @NotNull private String status; // TODO: mettre en enum
 
-  private boolean isRestricted;
+  private boolean resourceIsActive;
 
-  private boolean isPublished;
-
-  private boolean isExploited;
-
-  private boolean isSuspended;
+  private boolean resourceIsUsed;
 
   @NotNull private UUID categoryId;
+
+  @NotNull private List<@NotBlank @Size(max = 140) String> tags;
 }

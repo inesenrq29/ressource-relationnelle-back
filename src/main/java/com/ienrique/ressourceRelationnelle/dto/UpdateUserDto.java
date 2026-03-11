@@ -17,5 +17,5 @@ public class UpdateUserDto {
   @Size(max = 100)
   private String pseudo;
 
-  private boolean isActive;
+  private boolean appUserIsActive;
 }

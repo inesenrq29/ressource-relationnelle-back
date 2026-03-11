@@ -17,21 +17,20 @@ public class CommentDto {
 
   @NotNull private UUID commentsId;
 
+  @NotNull private Instant publicationDate;
+
+  @NotNull private Instant modificationCommentsDate;
+
   @NotBlank
-  @Size(max = 255)
+  @Size(max = 100)
+  private String author;
+
+  @Size(max = 100)
   private String titleComments;
 
   @NotBlank
-  @Size(max = 255)
+  @Size(max = 5000)
   private String commentsContent;
-
-  @NotNull private UUID authorId;
-
-  private boolean isModerated;
-
-  @NotNull private Instant createdAt;
-
-  private UUID parentId; // null si commentaire principal
 
   @NotNull private UUID resourceId;
 }

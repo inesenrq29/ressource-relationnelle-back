@@ -1,6 +1,5 @@
 package com.ienrique.ressourceRelationnelle.dto;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.validation.constraints.NotNull;
@@ -15,9 +14,7 @@ public class FavoriteDto {
 
   @NotNull private UUID favoriteId;
 
+  @NotNull private UUID appUserId;
+
   @NotNull private UUID resourceId;
-
-  @NotNull private UUID userId;
-
-  @NotNull private Instant createdAt;
 }

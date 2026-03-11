@@ -20,28 +20,26 @@ public class ResourceDto {
 
   @NotNull private UUID resourceId;
 
+  private boolean resourceIsActive;
+
+  private boolean resourceIsUsed;
+
   @NotBlank
   @Size(max = 255)
-  private String title;
+  private String resourceTitle;
 
-  @NotBlank
   @Size(max = 5000)
-  private String description;
+  private String resourceDescription;
 
-  private boolean isRestricted;
-  private boolean isPublished;
-  private boolean isExploited;
-  private boolean isSuspended;
+  @NotNull private String status; // TODO: mettre en enum
 
-  @NotNull private List<@NotBlank @Size(max = 50) String> tags;
-
-  @NotNull private Instant createdAt;
-
-  @NotNull private Instant updatedAt;
+  @NotNull private Instant resourceCreatedAt;
 
   @NotNull private UUID categoryId;
 
   @NotBlank
-  @Size(max = 255)
-  private String createdBy;
+  @Size(max = 100)
+  private String categoryName;
+
+  @NotNull private List<@NotBlank @Size(max = 140) String> tags;
 }

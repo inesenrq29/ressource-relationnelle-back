@@ -17,14 +17,17 @@ import lombok.Setter;
 public class ResourceFilterDto {
 
   @Size(max = 255)
-  private String title;
+  private String resourceTitle;
 
-  private boolean isRestricted;
-  private boolean isPublished;
-  private boolean isExploited;
-  private boolean isSuspended;
+  private Boolean resourceIsActive;
 
-  private List<@Size(max = 50) String> tags;
+  private Boolean resourceIsUsed;
+
+  private String status; // TODO: mettre en enum
+
+  private UUID categoryId;
+
+  private List<@Size(max = 140) String> tags;
 
   @Size(max = 50)
   private String sortBy;
@@ -37,6 +40,4 @@ public class ResourceFilterDto {
 
   @Min(1)
   private Integer size;
-
-  private UUID categoryId;
 }

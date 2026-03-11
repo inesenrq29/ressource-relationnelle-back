@@ -19,6 +19,6 @@ public class TagDto {
   @NotNull private UUID tagId;
 
   @NotBlank
-  @Size(max = 50)
-  private String pdfWeight;
+  @Size(max = 140)
+  private String wording;
 }

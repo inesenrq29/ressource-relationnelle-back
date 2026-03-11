@@ -2,7 +2,6 @@ package com.ienrique.ressourceRelationnelle.dto;
 
 import java.util.UUID;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -16,7 +15,6 @@ public class ArticleDto {
 
   @NotNull private UUID articleId;
 
-  @NotBlank
-  @Size(max = 2048)
+  @Size(max = 255)
   private String link;
 }

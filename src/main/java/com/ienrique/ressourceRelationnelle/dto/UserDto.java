@@ -17,23 +17,17 @@ import lombok.Setter;
 @NoArgsConstructor
 public class UserDto {
 
-  @NotNull private UUID userId;
+  @NotNull private UUID appUserId;
 
   @NotBlank
-  @Size(max = 254)
+  @Size(max = 255)
   private String mail;
-
-  @NotBlank
-  @Size(max = 50)
-  private String role;
 
   @NotBlank
   @Size(max = 100)
   private String pseudo;
 
-  @NotNull private Instant createdAt;
+  private boolean appUserIsActive;
 
-  @NotNull private Instant updatedAt;
-
-  private boolean isActive;
+  private Instant lastConnectionAt;
 }
