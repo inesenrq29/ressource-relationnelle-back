@@ -24,7 +24,7 @@ public class Pdf {
   @Column(name = "pdfId", nullable = false, updatable = false)
   private UUID pdfId;
 
-  @Column(name = "pdfWeight", nullable = false, unique = true)
+  @Column(name = "pdfWeight", nullable = false)
   private Long pdfWeight;
 
   @OneToOne(fetch = FetchType.LAZY)
