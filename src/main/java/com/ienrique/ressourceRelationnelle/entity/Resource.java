@@ -16,6 +16,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -57,4 +58,8 @@ public abstract class Resource {
       joinColumns = @JoinColumn(name = "resourceId"),
       inverseJoinColumns = @JoinColumn(name = "tagId"))
   private Set<Tag> tags = new HashSet<>();
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "categoryId")
+  private Category category;
 }
