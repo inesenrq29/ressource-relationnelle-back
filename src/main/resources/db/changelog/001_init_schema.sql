@@ -96,21 +96,20 @@ CREATE TABLE HistoryStateResource (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE Favorite (
-    favoriteId CHAR(36) NOT NULL DEFAULT (UUID()),
-    appUserId CHAR(36) NOT NULL,
-    resourceId CHAR(36) NOT NULL,
-    PRIMARY KEY (favoriteId),
-    UNIQUE KEY uq_favorite_user_resource (appUserId, resourceId)
-    CONSTRAINT fk_favorite_appUser
-        FOREIGN KEY (appUserId)
-            REFERENCES AppUser(appUserId)
-            ON DELETE CASCADE
-            ON UPDATE CASCADE,
-    CONSTRAINT fk_favorite_resource
-        FOREIGN KEY (resourceId)
-            REFERENCES Resource(resourceId)
-            ON DELETE CASCADE
-            ON UPDATE CASCADE
+  favoriteId CHAR(36) NOT NULL DEFAULT (UUID()),
+  appUserId CHAR(36) NOT NULL,
+  ressourceId CHAR(36) NOT NULL,
+  PRIMARY KEY (favoriteId),
+  CONSTRAINT fk_favorite_appUser
+      FOREIGN KEY (appUserId)
+          REFERENCES AppUser(appUserId)
+          ON DELETE CASCADE
+          ON UPDATE CASCADE,
+  CONSTRAINT fk_favorite_resource
+      FOREIGN KEY (ressourceId)
+          REFERENCES Resource(resourceId)
+          ON DELETE CASCADE
+          ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE Tag (
