@@ -8,7 +8,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -27,7 +27,7 @@ public class Article {
   @Column(name = "link", nullable = false, unique = true)
   private String link;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "resourceId")
+  @OneToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "resourceId", unique = true)
   private Resource resource;
 }
