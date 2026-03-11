@@ -3,6 +3,7 @@ package com.ienrique.ressourceRelationnelle.dto;
 import java.util.List;
 import java.util.UUID;
 
+import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -23,7 +24,7 @@ public class ResourceFilterDto {
 
   private Boolean resourceIsUsed;
 
-  private String status; // TODO: mettre en enum
+  private ResourceStatus status;
 
   private UUID categoryId;
 
