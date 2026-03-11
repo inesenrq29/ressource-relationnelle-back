@@ -7,3 +7,7 @@ databaseChangeLog:
       file: db/changelog/003_fix_pdf_weight_unique.sql
   - include:
       file: db/changelog/004_create_resource_tag_table.sql
+  - include:
+      file: db/changelog/005_create_category_table.sql
+  - include:
+      file: db/changelog/006_update_resource_with_category.sql
