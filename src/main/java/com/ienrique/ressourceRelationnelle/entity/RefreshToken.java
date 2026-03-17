@@ -9,7 +9,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -38,8 +37,7 @@ public class RefreshToken {
   @Column(name = "ipAddress", length = 45)
   private String ipAddress;
 
-  @Lob
-  @Column(name = "userAgent")
+  @Column(name = "userAgent", nullable = false, columnDefinition = "TEXT")
   private String userAgent;
 
   @Column(name = "revoked", nullable = false)

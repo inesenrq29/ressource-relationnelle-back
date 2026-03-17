@@ -10,8 +10,19 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
+    properties:
+      hibernate:
+        physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        type:
+          preferred_uuid_jdbc_type: CHAR
 
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
+
+security:
+  jwt:
+    secret: "long-random-secret-for-cesizen-project"
+    access-token-ttl-minutes: 15
+    refresh-token-ttl-days: 7

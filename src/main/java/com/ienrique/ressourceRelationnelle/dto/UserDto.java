@@ -30,4 +30,6 @@ public class UserDto {
   private boolean appUserIsActive;
 
   private Instant lastConnectionAt;
+
+  @NotNull private RoleDto role;
 }

@@ -21,6 +21,10 @@ public class RegisterUserDto {
   private String email;
 
   @NotBlank
+  @Size(min = 3, max = 100)
+  private String pseudo;
+
+  @NotBlank
   @Size(min = 8, max = 255)
   private String password;
 

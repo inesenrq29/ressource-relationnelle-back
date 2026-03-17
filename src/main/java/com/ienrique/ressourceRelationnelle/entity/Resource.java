@@ -14,7 +14,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -41,8 +40,7 @@ public abstract class Resource {
   @Column(name = "resourceTitle", nullable = false)
   private String resourceTitle;
 
-  @Lob
-  @Column(name = "resourceDescription")
+  @Column(name = "resourceDescription", nullable = false, columnDefinition = "TEXT")
   private String resourceDescription;
 
   @Enumerated(EnumType.STRING)

@@ -9,7 +9,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -42,8 +41,7 @@ public class Comments {
   @Column(name = "titleComments", length = 100)
   private String titleComments;
 
-  @Lob
-  @Column(name = "commentsContent", nullable = false)
+  @Column(name = "commentsContent", nullable = false, columnDefinition = "TEXT")
   private String commentsContent;
 
   @ManyToOne(fetch = FetchType.LAZY)

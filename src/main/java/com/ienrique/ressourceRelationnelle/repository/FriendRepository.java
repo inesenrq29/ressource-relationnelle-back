@@ -14,8 +14,8 @@ public interface FriendRepository extends JpaRepository<Friend, UUID> {
 
   List<Friend> findByRequesterUserAppUserId(UUID requesterUserId);
 
-  List<Friend> findByFriendReceiverUserIdAppUserId(UUID friendReceiverUserId);
+  List<Friend> findByReceiverUserAppUserId(UUID receiverUserId);
 
-  Optional<Friend> findByRequesterUserAppUserIdAndFriendReceiverUserIdAppUserId(
-      UUID requesterUserId, UUID friendReceiverUserId);
+  Optional<Friend> findByRequesterUserAppUserIdAndReceiverUserAppUserId(
+      UUID requesterUserId, UUID receiverUserId);
 }

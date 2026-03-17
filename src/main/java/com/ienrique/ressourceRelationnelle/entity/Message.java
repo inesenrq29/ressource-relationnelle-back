@@ -9,7 +9,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -29,8 +28,7 @@ public class Message {
   @Column(name = "titleType", nullable = false, length = 100)
   private String titleType;
 
-  @Lob
-  @Column(name = "messageDescription")
+  @Column(name = "messageDescription", nullable = false, columnDefinition = "TEXT")
   private String messageDescription;
 
   @Column(name = "messageCreatedAt", nullable = false, insertable = false, updatable = false)

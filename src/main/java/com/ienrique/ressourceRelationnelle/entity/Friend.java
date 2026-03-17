@@ -21,7 +21,12 @@ public class Friend {
 
   @Id
   @GeneratedValue
-  @Column(name = "friendId", nullable = false, updatable = false)
+  @Column(
+      name = "friendId",
+      nullable = false,
+      updatable = false,
+      length = 36,
+      columnDefinition = "CHAR(36)")
   private UUID friendId;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -29,6 +34,6 @@ public class Friend {
   private AppUser requesterUser;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "friendReceiverUserId", nullable = false)
-  private AppUser friendReceiverUserId;
+  @JoinColumn(name = "receiverUserId", nullable = false)
+  private AppUser receiverUser;
 }
