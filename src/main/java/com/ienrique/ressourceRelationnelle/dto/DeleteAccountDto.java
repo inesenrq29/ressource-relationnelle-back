@@ -11,9 +11,9 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class UpdateUserDto {
+public class DeleteAccountDto {
 
   @NotBlank
-  @Size(max = 100)
-  private String pseudo;
+  @Size(min = 8, max = 255)
+  private String password;
 }

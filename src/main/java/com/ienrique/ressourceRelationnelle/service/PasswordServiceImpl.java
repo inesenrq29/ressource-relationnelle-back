@@ -13,6 +13,8 @@ import com.ienrique.ressourceRelationnelle.dto.ResetPasswordDto;
 import com.ienrique.ressourceRelationnelle.entity.AppUser;
 import com.ienrique.ressourceRelationnelle.entity.PasswordResetToken;
 import com.ienrique.ressourceRelationnelle.entity.TokenType;
+import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
+import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
 import com.ienrique.ressourceRelationnelle.repository.AppUserRepository;
 import com.ienrique.ressourceRelationnelle.repository.PasswordRepository;
 
@@ -63,23 +65,23 @@ public class PasswordServiceImpl implements PasswordService {
     final PasswordResetToken resetToken =
         passwordRepository
             .findByTokenValueAndType(resetPasswordDto.getToken(), TokenType.RESET_PASSWORD)
-            .orElseThrow(() -> new RuntimeException("Invalid token"));
+            .orElseThrow(() -> new BadRequestException("Invalid token"));
 
     // on vérifie que le token n'est pas déjà utilisé
     if (resetToken.isUsed()) {
-      throw new RuntimeException("Token has been already used");
+      throw new BadRequestException("Token has been already used");
     }
 
     // on vérifie que le token n'est pas expiré
     if (resetToken.getExpiresAt().isBefore(Instant.now())) {
-      throw new RuntimeException("Token expired");
+      throw new BadRequestException("Token expired");
     }
 
     // on rentre le nouveau mot de passe (qui doit respecter une certaine taille etc)
     final AppUser user = resetToken.getUser();
 
     if (passwordEncoder.matches(resetPasswordDto.getNewPassword(), user.getHashedPassword())) {
-      throw new RuntimeException("Passwords must be different");
+      throw new BadRequestException("Passwords must be different");
     }
 
     user.setHashedPassword(passwordEncoder.encode(resetPasswordDto.getNewPassword()));
@@ -97,15 +99,15 @@ public class PasswordServiceImpl implements PasswordService {
     final AppUser user =
         userRepository
             .findById(appUserId)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> new NotFoundException("User not found"));
     // on vérifie que le mdp actuel est = à celui hash en BDD
     if (!passwordEncoder.matches(
         changePasswordDto.getCurrentPassword(), user.getHashedPassword())) {
-      throw new RuntimeException("Invalid current password");
+      throw new BadRequestException("Invalid current password");
     }
     // on vérifie que le nv mdp hash n'est pas le même que celui en BDD actuel
     if (passwordEncoder.matches(changePasswordDto.getNewPassword(), user.getHashedPassword())) {
-      throw new RuntimeException("Passwords must be different");
+      throw new BadRequestException("Passwords must be different");
     }
 
     // on encode le nouveau mot de passe avant de l'enregistrer

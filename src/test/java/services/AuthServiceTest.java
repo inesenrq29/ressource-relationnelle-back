@@ -27,6 +27,8 @@ import com.ienrique.ressourceRelationnelle.dto.UserDto;
 import com.ienrique.ressourceRelationnelle.entity.AccountStatus;
 import com.ienrique.ressourceRelationnelle.entity.AppUser;
 import com.ienrique.ressourceRelationnelle.entity.Role;
+import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
+import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
 import com.ienrique.ressourceRelationnelle.mapper.RoleMapper;
 import com.ienrique.ressourceRelationnelle.mapper.UserMapper;
 import com.ienrique.ressourceRelationnelle.repository.AppUserRepository;
@@ -105,7 +107,8 @@ public class AuthServiceTest {
       when(userRepository.existsByMail(requestDto.getEmail())).thenReturn(true);
 
       assertThrows(
-          RuntimeException.class, () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
+          BadRequestException.class,
+          () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
       verify(userRepository, never()).save(any());
       verify(jwtService, never()).generateAccessToken(any());
     }
@@ -119,7 +122,8 @@ public class AuthServiceTest {
       when(userRepository.existsByMail(requestDto.getEmail())).thenReturn(false);
 
       assertThrows(
-          RuntimeException.class, () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
+          BadRequestException.class,
+          () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
       verify(userRepository, never()).save(any());
       verify(jwtService, never()).generateAccessToken(any());
     }
@@ -133,7 +137,8 @@ public class AuthServiceTest {
       when(userRepository.existsByMail(requestDto.getEmail())).thenReturn(false);
 
       assertThrows(
-          RuntimeException.class, () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
+          BadRequestException.class,
+          () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
       verify(userRepository, never()).save(any());
       verify(jwtService, never()).generateAccessToken(any());
     }
@@ -147,7 +152,8 @@ public class AuthServiceTest {
       when(userRepository.existsByMail(requestDto.getEmail())).thenReturn(false);
 
       assertThrows(
-          RuntimeException.class, () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
+          BadRequestException.class,
+          () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
       verify(userRepository, never()).save(any());
       verify(jwtService, never()).generateAccessToken(any());
     }
@@ -161,7 +167,8 @@ public class AuthServiceTest {
       when(userRepository.existsByMail(requestDto.getEmail())).thenReturn(false);
 
       assertThrows(
-          RuntimeException.class, () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
+          NotFoundException.class,
+          () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
       verify(userRepository, never()).save(any());
       verify(jwtService, never()).generateAccessToken(any());
     }
@@ -216,7 +223,7 @@ public class AuthServiceTest {
       when(userRepository.findByMail(requestDto.getEmail())).thenReturn(Optional.empty());
 
       assertThrows(
-          RuntimeException.class, () -> authService.login(requestDto, "remoteAddr", "User-Agent"));
+          NotFoundException.class, () -> authService.login(requestDto, "remoteAddr", "User-Agent"));
       verify(userRepository, never()).save(any());
       verify(jwtService, never()).generateAccessToken(any());
     }
@@ -232,7 +239,8 @@ public class AuthServiceTest {
       when(userRepository.findByMail(requestDto.getEmail())).thenReturn(Optional.of(user));
 
       assertThrows(
-          RuntimeException.class, () -> authService.login(requestDto, "remoteAddr", "User-Agent"));
+          BadRequestException.class,
+          () -> authService.login(requestDto, "remoteAddr", "User-Agent"));
       verify(userRepository, never()).save(any());
     }
 
@@ -249,7 +257,8 @@ public class AuthServiceTest {
           .thenReturn(false);
 
       assertThrows(
-          RuntimeException.class, () -> authService.login(requestDto, "remoteAddr", "User-Agent"));
+          BadRequestException.class,
+          () -> authService.login(requestDto, "remoteAddr", "User-Agent"));
       verify(userRepository, never()).save(any());
     }
   }
@@ -270,7 +279,7 @@ public class AuthServiceTest {
     @DisplayName("Should throw bad request refresh token is required")
     void shouldThrowErrorTokenNull() {
 
-      assertThrows(RuntimeException.class, () -> authService.logout(null));
+      assertThrows(BadRequestException.class, () -> authService.logout(null));
 
       verify(jwtService, never()).revokeToken(anyString());
     }
@@ -279,7 +288,7 @@ public class AuthServiceTest {
     @DisplayName("Should throw bad request refresh token is required")
     void shouldThrowErrorTokenBlank() {
 
-      assertThrows(RuntimeException.class, () -> authService.logout(""));
+      assertThrows(BadRequestException.class, () -> authService.logout(""));
 
       verify(jwtService, never()).revokeToken(anyString());
     }
@@ -288,7 +297,7 @@ public class AuthServiceTest {
     @DisplayName("Should throw bad request logout request is null")
     void shouldThrowErrorTRequest() {
 
-      assertThrows(RuntimeException.class, () -> authService.logout(null));
+      assertThrows(BadRequestException.class, () -> authService.logout(null));
 
       verify(jwtService, never()).revokeToken(anyString());
     }
@@ -322,7 +331,8 @@ public class AuthServiceTest {
     void shouldThrowErrorTokenNull() {
 
       assertThrows(
-          RuntimeException.class, () -> authService.refreshToken(null, "remoteAddr", "User-Agent"));
+          BadRequestException.class,
+          () -> authService.refreshToken(null, "remoteAddr", "User-Agent"));
 
       verify(jwtService, never()).rotateRefreshToken(anyString(), anyString(), anyString());
     }
@@ -332,7 +342,8 @@ public class AuthServiceTest {
     void shouldThrowErrorTokenBlank() {
 
       assertThrows(
-          RuntimeException.class, () -> authService.refreshToken("", "remoteAddr", "User-Agent"));
+          BadRequestException.class,
+          () -> authService.refreshToken("", "remoteAddr", "User-Agent"));
 
       verify(jwtService, never()).rotateRefreshToken(anyString(), anyString(), anyString());
     }
@@ -342,7 +353,8 @@ public class AuthServiceTest {
     void shouldThrowErrorTRequest() {
 
       assertThrows(
-          RuntimeException.class, () -> authService.refreshToken(null, "remoteAddr", "User-Agent"));
+          BadRequestException.class,
+          () -> authService.refreshToken(null, "remoteAddr", "User-Agent"));
 
       verify(jwtService, never()).rotateRefreshToken(anyString(), anyString(), anyString());
     }

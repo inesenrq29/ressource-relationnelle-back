@@ -28,6 +28,8 @@ import com.ienrique.ressourceRelationnelle.dto.ResetPasswordDto;
 import com.ienrique.ressourceRelationnelle.entity.AppUser;
 import com.ienrique.ressourceRelationnelle.entity.PasswordResetToken;
 import com.ienrique.ressourceRelationnelle.entity.TokenType;
+import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
+import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
 import com.ienrique.ressourceRelationnelle.repository.AppUserRepository;
 import com.ienrique.ressourceRelationnelle.repository.PasswordRepository;
 import com.ienrique.ressourceRelationnelle.service.PasswordServiceImpl;
@@ -98,8 +100,8 @@ public class PasswordServiceTest {
       when(passwordResetTokenRepository.findByTokenValueAndType("token", TokenType.RESET_PASSWORD))
           .thenReturn(Optional.empty());
 
-      final RuntimeException exception =
-          assertThrows(RuntimeException.class, () -> passwordService.resetPassword(requestDto));
+      final BadRequestException exception =
+          assertThrows(BadRequestException.class, () -> passwordService.resetPassword(requestDto));
 
       assertEquals("Invalid token", exception.getMessage());
       verify(userRepository, never()).save(any(AppUser.class));
@@ -120,8 +122,8 @@ public class PasswordServiceTest {
       when(passwordResetTokenRepository.findByTokenValueAndType("token", TokenType.RESET_PASSWORD))
           .thenReturn(Optional.of(passwordResetToken));
 
-      final RuntimeException exception =
-          assertThrows(RuntimeException.class, () -> passwordService.resetPassword(requestDto));
+      final BadRequestException exception =
+          assertThrows(BadRequestException.class, () -> passwordService.resetPassword(requestDto));
 
       assertEquals("Token has been already used", exception.getMessage());
       verify(userRepository, never()).save(any(AppUser.class));
@@ -142,8 +144,8 @@ public class PasswordServiceTest {
       when(passwordResetTokenRepository.findByTokenValueAndType("token", TokenType.RESET_PASSWORD))
           .thenReturn(Optional.of(passwordResetToken));
 
-      final RuntimeException exception =
-          assertThrows(RuntimeException.class, () -> passwordService.resetPassword(requestDto));
+      final BadRequestException exception =
+          assertThrows(BadRequestException.class, () -> passwordService.resetPassword(requestDto));
 
       assertEquals("Token expired", exception.getMessage());
       verify(userRepository, never()).save(any(AppUser.class));
@@ -189,9 +191,9 @@ public class PasswordServiceTest {
       final ChangePasswordDto requestDto =
           new ChangePasswordDto("currentPassword", "currentPassword");
 
-      final RuntimeException exception =
+      final BadRequestException exception =
           assertThrows(
-              RuntimeException.class, () -> passwordService.changePassword(userId, requestDto));
+              BadRequestException.class, () -> passwordService.changePassword(userId, requestDto));
 
       assertEquals("Passwords must be different", exception.getMessage());
       verify(passwordEncoder, never()).encode(anyString());
@@ -206,9 +208,9 @@ public class PasswordServiceTest {
 
       when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-      final RuntimeException exception =
+      final NotFoundException exception =
           assertThrows(
-              RuntimeException.class, () -> passwordService.changePassword(userId, requestDto));
+              NotFoundException.class, () -> passwordService.changePassword(userId, requestDto));
 
       assertEquals("User not found", exception.getMessage());
       verify(userRepository, never()).save(any(AppUser.class));
@@ -226,9 +228,9 @@ public class PasswordServiceTest {
       when(userRepository.findById(userId)).thenReturn(Optional.of(user));
       when(passwordEncoder.matches("currentPassword", "current_hashed_password")).thenReturn(false);
 
-      final RuntimeException exception =
+      final BadRequestException exception =
           assertThrows(
-              RuntimeException.class, () -> passwordService.changePassword(userId, requestDto));
+              BadRequestException.class, () -> passwordService.changePassword(userId, requestDto));
 
       assertEquals("Invalid current password", exception.getMessage());
       verify(userRepository, never()).save(any(AppUser.class));

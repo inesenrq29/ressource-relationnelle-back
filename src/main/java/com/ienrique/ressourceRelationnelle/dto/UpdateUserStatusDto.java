@@ -1,7 +1,8 @@
 package com.ienrique.ressourceRelationnelle.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import com.ienrique.ressourceRelationnelle.entity.AccountStatus;
+
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,9 +12,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class UpdateUserDto {
+public class UpdateUserStatusDto {
 
-  @NotBlank
-  @Size(max = 100)
-  private String pseudo;
+  @NotNull private AccountStatus status;
 }

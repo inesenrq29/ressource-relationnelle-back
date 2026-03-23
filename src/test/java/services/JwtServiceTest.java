@@ -38,6 +38,7 @@ import com.ienrique.ressourceRelationnelle.dto.UserDto;
 import com.ienrique.ressourceRelationnelle.entity.AppUser;
 import com.ienrique.ressourceRelationnelle.entity.RefreshToken;
 import com.ienrique.ressourceRelationnelle.entity.Role;
+import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.mapper.UserMapper;
 import com.ienrique.ressourceRelationnelle.repository.RefreshTokenRepository;
 import com.ienrique.ressourceRelationnelle.service.JwtServiceImpl;
@@ -137,13 +138,13 @@ public class JwtServiceTest {
     @Test
     @DisplayName("should throw bad request when token is null")
     void shouldThrowBadRequestWhenTokenIsNull() {
-      assertThrows(RuntimeException.class, () -> jwtService.revokeToken(null));
+      assertThrows(BadRequestException.class, () -> jwtService.revokeToken(null));
     }
 
     @Test
     @DisplayName("should throw bad request when token is blank")
     void shouldThrowBadRequestWhenTokenIsBlank() {
-      assertThrows(RuntimeException.class, () -> jwtService.revokeToken("   "));
+      assertThrows(BadRequestException.class, () -> jwtService.revokeToken("   "));
     }
 
     @Test
@@ -186,13 +187,13 @@ public class JwtServiceTest {
     @Test
     @DisplayName("should throw bad request when refresh token is null")
     void shouldThrowBadRequestWhenRefreshTokenIsNull() {
-      assertThrows(RuntimeException.class, () -> jwtService.validateRefreshToken(null));
+      assertThrows(BadRequestException.class, () -> jwtService.validateRefreshToken(null));
     }
 
     @Test
     @DisplayName("should throw bad request when refresh token is blank")
     void shouldThrowBadRequestWhenRefreshTokenIsBlank() {
-      assertThrows(RuntimeException.class, () -> jwtService.validateRefreshToken(" "));
+      assertThrows(BadRequestException.class, () -> jwtService.validateRefreshToken(" "));
     }
 
     @Test
@@ -201,8 +202,8 @@ public class JwtServiceTest {
       final String rawToken = "unknown-token";
       when(tokenRepository.findByHashedToken(sha256(rawToken))).thenReturn(Optional.empty());
 
-      final RuntimeException ex =
-          assertThrows(RuntimeException.class, () -> jwtService.validateRefreshToken(rawToken));
+      final BadRequestException ex =
+          assertThrows(BadRequestException.class, () -> jwtService.validateRefreshToken(rawToken));
 
       assertEquals("Invalid refresh token", ex.getMessage());
     }
@@ -218,8 +219,8 @@ public class JwtServiceTest {
       when(tokenRepository.findByHashedToken(sha256(rawToken)))
           .thenReturn(Optional.of(refreshToken));
 
-      final RuntimeException ex =
-          assertThrows(RuntimeException.class, () -> jwtService.validateRefreshToken(rawToken));
+      final BadRequestException ex =
+          assertThrows(BadRequestException.class, () -> jwtService.validateRefreshToken(rawToken));
 
       assertEquals("Refresh token is revoked", ex.getMessage());
     }
@@ -235,8 +236,8 @@ public class JwtServiceTest {
       when(tokenRepository.findByHashedToken(sha256(rawToken)))
           .thenReturn(Optional.of(refreshToken));
 
-      final RuntimeException ex =
-          assertThrows(RuntimeException.class, () -> jwtService.validateRefreshToken(rawToken));
+      final BadRequestException ex =
+          assertThrows(BadRequestException.class, () -> jwtService.validateRefreshToken(rawToken));
 
       assertEquals("Refresh token is expired", ex.getMessage());
     }

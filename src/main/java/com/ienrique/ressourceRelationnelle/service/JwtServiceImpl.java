@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ienrique.ressourceRelationnelle.dto.AuthTokenDto;
 import com.ienrique.ressourceRelationnelle.entity.AppUser;
 import com.ienrique.ressourceRelationnelle.entity.RefreshToken;
+import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.mapper.UserMapper;
 import com.ienrique.ressourceRelationnelle.repository.RefreshTokenRepository;
 
@@ -97,7 +98,7 @@ public class JwtServiceImpl implements JwtService {
   @Transactional
   public void revokeToken(String rawToken) {
     if (rawToken == null || rawToken.isBlank()) {
-      throw new RuntimeException("Token is required");
+      throw new BadRequestException("Token is required");
     }
 
     // révoque le token
@@ -117,23 +118,23 @@ public class JwtServiceImpl implements JwtService {
   public RefreshToken validateRefreshToken(String rawToken) {
     // on vérifie que le token n'est ni null ni vide
     if (rawToken == null || rawToken.isBlank()) {
-      throw new RuntimeException("Refresh token is required");
+      throw new BadRequestException("Refresh token is required");
     }
 
     // on véririe que le token existe
     final RefreshToken refreshToken =
         refreshTokenRepository
             .findByHashedToken(hashToken(rawToken))
-            .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+            .orElseThrow(() -> new BadRequestException("Invalid refresh token"));
 
     // on vérifie que le token n'est pas révoqué
     if (refreshToken.isRevoked()) {
-      throw new RuntimeException("Refresh token is revoked");
+      throw new BadRequestException("Refresh token is revoked");
     }
 
     // on vérifie que le token n'est pas expiré
     if (refreshToken.getExpiresAt().isBefore(Instant.now())) {
-      throw new RuntimeException("Refresh token is expired");
+      throw new BadRequestException("Refresh token is expired");
     }
 
     // valide le token si toutes les conditions sont requises

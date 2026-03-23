@@ -14,4 +14,6 @@ public interface PasswordRepository extends JpaRepository<PasswordResetToken, UU
   Optional<PasswordResetToken> findByTokenValueAndType(String tokenValue, TokenType type);
 
   void deleteByUser_AppUserIdAndType(UUID appUserId, TokenType type);
+
+  void deleteByAppUser_AppUserId(UUID appUserId);
 }
