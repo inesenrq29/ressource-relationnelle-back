@@ -94,7 +94,7 @@ public class UserControllerTest {
       user.setAppUserId(userId);
       final DeleteAccountDto requestDto = new DeleteAccountDto("password");
 
-      doThrow(new RuntimeException("Forbidden"))
+      doThrow(new ForbiddenException("Forbidden"))
           .when(userService)
           .deleteAccount(userId, requestDto);
 

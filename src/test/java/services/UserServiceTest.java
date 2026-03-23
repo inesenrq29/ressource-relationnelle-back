@@ -1,7 +1,6 @@
 package services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -30,6 +29,7 @@ import com.ienrique.ressourceRelationnelle.entity.AccountStatus;
 import com.ienrique.ressourceRelationnelle.entity.AppUser;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
+import com.ienrique.ressourceRelationnelle.mapper.RoleMapper;
 import com.ienrique.ressourceRelationnelle.mapper.UserMapper;
 import com.ienrique.ressourceRelationnelle.repository.AppUserRepository;
 import com.ienrique.ressourceRelationnelle.repository.PasswordRepository;
@@ -41,6 +41,7 @@ public class UserServiceTest {
   @Mock private AppUserRepository userRepository;
   @Mock private PasswordRepository passwordResetTokenRepository;
   @Mock private UserMapper userMapper;
+  @Mock private RoleMapper roleMapper;
   @Mock private PasswordEncoder passwordEncoder;
 
   @InjectMocks private UserServiceImpl userService;
@@ -64,7 +65,6 @@ public class UserServiceTest {
       when(userRepository.findById(userId)).thenReturn(Optional.of(user));
       when(passwordEncoder.matches("password", "hashed_password")).thenReturn(true);
 
-      passwordResetTokenRepository.deleteByAppUser_AppUserId(userId);
       userService.deleteAccount(userId, requestDto);
 
       verify(userRepository).delete(user);
@@ -161,36 +161,38 @@ public class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Should update user with blank names")
-    void shouldUpdateUserWithBlankName() {
+    @DisplayName("Should not update pseudo when request pseudo is blank")
+    void shouldNotUpdatePseudoWhenBlank() {
       final UUID userId = UUID.randomUUID();
       final AppUser user = new AppUser();
       user.setAppUserId(userId);
-      user.setPseudo("");
+      user.setPseudo("oldPseudo");
 
       final UpdateUserDto userRequestDto = new UpdateUserDto("");
 
       when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
       userService.updateUser(userId, userRequestDto);
 
-      assertEquals("", user.getPseudo());
+      assertEquals("oldPseudo", user.getPseudo());
       verify(userRepository).save(user);
     }
 
     @Test
-    @DisplayName("Should update user with null names")
-    void shouldUpdateUserWithNullNames() {
+    @DisplayName("Should not update pseudo when request pseudo is null")
+    void shouldNotUpdatePseudoWhenNull() {
       final UUID userId = UUID.randomUUID();
       final AppUser user = new AppUser();
       user.setAppUserId(userId);
-      user.setPseudo(null);
+      user.setPseudo("oldPseudo");
 
       final UpdateUserDto userRequestDto = new UpdateUserDto(null);
 
       when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
       userService.updateUser(userId, userRequestDto);
 
-      assertNull(user.getPseudo());
+      assertEquals("oldPseudo", user.getPseudo());
       verify(userRepository).save(user);
     }
 

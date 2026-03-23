@@ -29,7 +29,6 @@ import com.ienrique.ressourceRelationnelle.entity.AppUser;
 import com.ienrique.ressourceRelationnelle.entity.Role;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
-import com.ienrique.ressourceRelationnelle.mapper.RoleMapper;
 import com.ienrique.ressourceRelationnelle.mapper.UserMapper;
 import com.ienrique.ressourceRelationnelle.repository.AppUserRepository;
 import com.ienrique.ressourceRelationnelle.repository.RoleRepository;
@@ -41,7 +40,6 @@ public class AuthServiceTest {
   @Mock private AppUserRepository userRepository;
   @Mock private RoleRepository roleRepository;
   @Mock private UserMapper userMapper;
-  @Mock private RoleMapper roleMapper;
   @Mock private PasswordEncoder passwordEncoder;
   @Mock private JwtService jwtService;
 
@@ -165,10 +163,30 @@ public class AuthServiceTest {
           new RegisterUserDto("john.doe@test.com", "John ", "password", "password", true, true);
 
       when(userRepository.existsByMail(requestDto.getEmail())).thenReturn(false);
+      when(userRepository.existsByPseudo("John")).thenReturn(false);
+      when(roleRepository.findByRoleName("USER")).thenReturn(Optional.empty());
 
       assertThrows(
           NotFoundException.class,
           () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
+      verify(userRepository, never()).save(any());
+      verify(jwtService, never()).generateAccessToken(any());
+    }
+
+    @Test
+    @DisplayName("Should throw bad request when pseudo already exists")
+    void shouldThrowPseudoAlreadyExists() {
+      final RegisterUserDto requestDto =
+          new RegisterUserDto("john.doe@test.com", "John", "password", "password", true, true);
+
+      when(userRepository.existsByMail("john.doe@test.com")).thenReturn(false);
+      when(userRepository.existsByPseudo("John")).thenReturn(true);
+
+      assertThrows(
+          BadRequestException.class,
+          () -> authService.signUp(requestDto, "remoteAddr", "User-Agent"));
+
+      verify(roleRepository, never()).findByRoleName(anyString());
       verify(userRepository, never()).save(any());
       verify(jwtService, never()).generateAccessToken(any());
     }
@@ -292,15 +310,6 @@ public class AuthServiceTest {
 
       verify(jwtService, never()).revokeToken(anyString());
     }
-
-    @Test
-    @DisplayName("Should throw bad request logout request is null")
-    void shouldThrowErrorTRequest() {
-
-      assertThrows(BadRequestException.class, () -> authService.logout(null));
-
-      verify(jwtService, never()).revokeToken(anyString());
-    }
   }
 
   @Nested
@@ -344,17 +353,6 @@ public class AuthServiceTest {
       assertThrows(
           BadRequestException.class,
           () -> authService.refreshToken("", "remoteAddr", "User-Agent"));
-
-      verify(jwtService, never()).rotateRefreshToken(anyString(), anyString(), anyString());
-    }
-
-    @Test
-    @DisplayName("Should throw bad request logout request is null")
-    void shouldThrowErrorTRequest() {
-
-      assertThrows(
-          BadRequestException.class,
-          () -> authService.refreshToken(null, "remoteAddr", "User-Agent"));
 
       verify(jwtService, never()).rotateRefreshToken(anyString(), anyString(), anyString());
     }

@@ -27,6 +27,7 @@ import com.ienrique.ressourceRelationnelle.dto.AuthTokenDto;
 import com.ienrique.ressourceRelationnelle.dto.LoginDto;
 import com.ienrique.ressourceRelationnelle.dto.RegisterUserDto;
 import com.ienrique.ressourceRelationnelle.dto.UserDto;
+import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.service.AuthService;
 
 import jakarta.servlet.http.Cookie;
@@ -76,7 +77,7 @@ public class AuthControllerTest {
       final RegisterUserDto requestDto =
           new RegisterUserDto("email", "pseudo", "password", "password", true, true);
 
-      doThrow(new RuntimeException("Invalid email format"))
+      doThrow(new BadRequestException("Invalid email format"))
           .when(authService)
           .signUp(eq(requestDto), anyString(), anyString());
 
@@ -143,21 +144,21 @@ public class AuthControllerTest {
           .andExpect(status().isNoContent());
     }
 
-    /*@Test //TODO: à rajouter quand les exceptions seront gérés
+    @Test
     @DisplayName("Should throw 400 refresh token is required")
     void shouldThrow400() throws Exception {
 
-        doThrow(new RuntimeException("Refresh token is required"))
-                .when(authService)
-                .logout("refresh-token");
+      doThrow(new BadRequestException("Refresh token is required"))
+          .when(authService)
+          .logout("refresh-token");
 
-        mockMvc
-                .perform(
-                        post("/api/auth/logout")
-                                .with(jwt())
-                                .cookie(new Cookie("refreshToken", "refresh-token")))
-                .andExpect(status().isBadRequest());
-    }*/
+      mockMvc
+          .perform(
+              post("/api/auth/logout")
+                  .with(jwt())
+                  .cookie(new Cookie("refreshToken", "refresh-token")))
+          .andExpect(status().isBadRequest());
+    }
   }
 
   @Nested

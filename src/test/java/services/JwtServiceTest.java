@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -119,7 +118,7 @@ public class JwtServiceTest {
       final ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
       verify(tokenRepository, times(1)).save(captor.capture());
 
-      RefreshToken savedToken = captor.getValue();
+      final RefreshToken savedToken = captor.getValue();
 
       assertNotNull(savedToken.getHashedToken());
       assertNotEquals(rawToken, savedToken.getHashedToken());
@@ -179,6 +178,18 @@ public class JwtServiceTest {
 
       verify(tokenRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("should do nothing when token does not exist")
+    void shouldDoNothingWhenTokenDoesNotExist() {
+      final String rawToken = "unknown-token";
+
+      when(tokenRepository.findByHashedToken(sha256(rawToken))).thenReturn(Optional.empty());
+
+      jwtService.revokeToken(rawToken);
+
+      verify(tokenRepository, never()).save(any());
+    }
   }
 
   @Nested
@@ -227,7 +238,7 @@ public class JwtServiceTest {
 
     @Test
     @DisplayName("should throw bad request when token is expired")
-    void houldThrowBadRequestWhenTokenIsExpired() {
+    void shouldThrowBadRequestWhenTokenIsExpired() {
       final String rawToken = "expired-token";
       final RefreshToken refreshToken = new RefreshToken();
       refreshToken.setRevoked(false);
@@ -298,7 +309,7 @@ public class JwtServiceTest {
 
       assertTrue(currentToken.isRevoked());
 
-      verify(tokenRepository, atLeastOnce()).save(any(RefreshToken.class));
+      verify(tokenRepository, times(2)).save(any(RefreshToken.class));
       verify(userMapper).toDto(user);
     }
   }

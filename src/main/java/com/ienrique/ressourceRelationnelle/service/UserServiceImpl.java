@@ -22,7 +22,6 @@ import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
 import com.ienrique.ressourceRelationnelle.mapper.RoleMapper;
 import com.ienrique.ressourceRelationnelle.mapper.UserMapper;
 import com.ienrique.ressourceRelationnelle.repository.AppUserRepository;
-import com.ienrique.ressourceRelationnelle.repository.RoleRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,7 +30,6 @@ import lombok.RequiredArgsConstructor;
 public class UserServiceImpl implements UserService {
 
   private final AppUserRepository userRepository;
-  private final RoleRepository roleRepository;
   private final UserMapper userMapper;
   private final RoleMapper roleMapper;
   private final PasswordEncoder passwordEncoder;

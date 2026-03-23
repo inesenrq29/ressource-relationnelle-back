@@ -62,6 +62,20 @@ public class PasswordServiceTest {
       verify(userRepository).findByMail("email@test.com");
       verify(passwordResetTokenRepository)
           .deleteByUser_AppUserIdAndType(userId, TokenType.RESET_PASSWORD);
+      verify(passwordResetTokenRepository).save(any(PasswordResetToken.class));
+    }
+
+    @Test
+    @DisplayName("should do nothing when email does not exist")
+    void shouldDoNothingWhenEmailDoesNotExist() {
+      final ForgotPasswordDto requestDto = new ForgotPasswordDto("unknown@test.com");
+
+      when(userRepository.findByMail("unknown@test.com")).thenReturn(Optional.empty());
+
+      passwordService.requestResetPassword(requestDto);
+
+      verify(passwordResetTokenRepository, never()).deleteByUser_AppUserIdAndType(any(), any());
+      verify(passwordResetTokenRepository, never()).save(any(PasswordResetToken.class));
     }
   }
 
@@ -149,6 +163,31 @@ public class PasswordServiceTest {
 
       assertEquals("Token expired", exception.getMessage());
       verify(userRepository, never()).save(any(AppUser.class));
+    }
+
+    @Test
+    @DisplayName("should throw bad request when new password is same as current one")
+    void shouldThrowBadRequestWhenNewPasswordIsSameAsCurrentOne() {
+      final ResetPasswordDto requestDto = new ResetPasswordDto("token", "samePassword");
+      final AppUser user = new AppUser();
+      user.setHashedPassword("current_hashed_password");
+
+      final PasswordResetToken passwordResetToken = new PasswordResetToken();
+      passwordResetToken.setUsed(false);
+      passwordResetToken.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
+      passwordResetToken.setUser(user);
+      passwordResetToken.setType(TokenType.RESET_PASSWORD);
+
+      when(passwordResetTokenRepository.findByTokenValueAndType("token", TokenType.RESET_PASSWORD))
+          .thenReturn(Optional.of(passwordResetToken));
+      when(passwordEncoder.matches("samePassword", "current_hashed_password")).thenReturn(true);
+
+      final BadRequestException exception =
+          assertThrows(BadRequestException.class, () -> passwordService.resetPassword(requestDto));
+
+      assertEquals("Passwords must be different", exception.getMessage());
+      verify(userRepository, never()).save(any(AppUser.class));
+      verify(passwordResetTokenRepository, never()).save(any(PasswordResetToken.class));
     }
   }
 
