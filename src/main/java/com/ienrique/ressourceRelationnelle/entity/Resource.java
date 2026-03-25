@@ -24,7 +24,7 @@ import lombok.Setter;
 @Table(name = "Resource")
 @Getter
 @Setter
-public abstract class Resource {
+public class Resource {
 
   @Id
   @GeneratedValue

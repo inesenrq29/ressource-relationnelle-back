@@ -3,8 +3,6 @@ package com.ienrique.ressourceRelationnelle.dto;
 import java.util.List;
 import java.util.UUID;
 
-import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -25,10 +23,6 @@ public class UpdateResourceDto {
 
   @Size(max = 5000)
   private String resourceDescription;
-
-  @NotNull private ResourceStatus status;
-
-  private boolean resourceIsActive;
 
   private boolean resourceIsUsed;
 

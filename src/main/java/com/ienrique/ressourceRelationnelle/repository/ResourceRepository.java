@@ -13,11 +13,15 @@ import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
 @Repository
 public interface ResourceRepository extends JpaRepository<Resource, UUID> {
 
+  Optional<Resource> findByResourceId(UUID resourceId);
+
   Optional<Resource> findByResourceTitle(String resourceTitle);
 
   List<Resource> findByCategoryCategoryId(UUID categoryId);
 
   List<Resource> findByTagsTagId(UUID tagId);
+
+  List<Resource> findAllByStatus(ResourceStatus status);
 
   List<Resource> findByStatus(
       ResourceStatus status); // avec en status par exemple RESTRICTED pour ressource restreinte

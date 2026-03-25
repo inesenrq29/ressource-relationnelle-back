@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/006_update_resource_with_category.sql
   - include:
       file: db/changelog/007_create_role_table_and_update_app_user.sql
+  - include:
+      file: db/changelog/008_update_enum_in_resource_table.sql
