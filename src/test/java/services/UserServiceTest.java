@@ -1,6 +1,7 @@
 package services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -17,16 +18,20 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.ienrique.ressourceRelationnelle.dto.CreateAccountDto;
 import com.ienrique.ressourceRelationnelle.dto.DeleteAccountDto;
+import com.ienrique.ressourceRelationnelle.dto.RoleDto;
 import com.ienrique.ressourceRelationnelle.dto.UpdateUserDto;
 import com.ienrique.ressourceRelationnelle.dto.UserDto;
 import com.ienrique.ressourceRelationnelle.entity.AccountStatus;
 import com.ienrique.ressourceRelationnelle.entity.AppUser;
+import com.ienrique.ressourceRelationnelle.entity.Role;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
 import com.ienrique.ressourceRelationnelle.mapper.RoleMapper;
@@ -269,6 +274,109 @@ public class UserServiceTest {
       assertEquals(List.of(userDto, userDto2), results);
       verify(userMapper).toDto(user);
       verify(userMapper).toDto(user2);
+    }
+  }
+
+  @Nested
+  @DisplayName("create account with role")
+  class CreateAccountWithRole {
+
+    @Test
+    @DisplayName("should create account with role")
+    void shouldCreateAccountWithRole() {
+      final CreateAccountDto createAccountDto = new CreateAccountDto();
+      createAccountDto.setPseudo("  john_doe  ");
+      final RoleDto roleDto = new RoleDto();
+      roleDto.setRoleName("ADMIN");
+      createAccountDto.setRole(roleDto);
+
+      final Role role = new Role();
+      role.setRoleName("ADMIN");
+
+      final AppUser savedUser = new AppUser();
+      savedUser.setPseudo("john_doe");
+      savedUser.setStatus(AccountStatus.ACTIVE);
+      savedUser.setRole(role);
+      savedUser.setCreatedAt(Instant.now());
+      savedUser.setUpdatedAt(Instant.now());
+
+      final UserDto expectedDto = new UserDto();
+      expectedDto.setPseudo("john_doe");
+      expectedDto.setAppUserIsActive(true);
+
+      when(roleMapper.toEntity(roleDto)).thenReturn(role);
+      when(userRepository.save(any(AppUser.class))).thenReturn(savedUser);
+      when(userMapper.toDto(savedUser)).thenReturn(expectedDto);
+
+      final UserDto result = userService.createAccountWithRole(createAccountDto);
+
+      assertNotNull(result);
+      assertEquals("john_doe", result.getPseudo());
+
+      final ArgumentCaptor<AppUser> userCaptor = ArgumentCaptor.forClass(AppUser.class);
+      verify(userRepository).save(userCaptor.capture());
+
+      final AppUser userToSave = userCaptor.getValue();
+      assertEquals("john_doe", userToSave.getPseudo());
+      assertEquals(AccountStatus.ACTIVE, userToSave.getStatus());
+      assertEquals(role, userToSave.getRole());
+      assertNotNull(userToSave.getCreatedAt());
+      assertNotNull(userToSave.getUpdatedAt());
+    }
+
+    @Test
+    @DisplayName("should throw when payload is null")
+    void shouldThrowWhenPayloadIsNull() {
+      final BadRequestException exception =
+          assertThrows(BadRequestException.class, () -> userService.createAccountWithRole(null));
+
+      assertEquals("Create account payload is required", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("should throw when pseudo is null")
+    void shouldThrowWhenPseudoIsNull() {
+      final CreateAccountDto createAccountDto = new CreateAccountDto();
+      createAccountDto.setPseudo(null);
+      final RoleDto roleDto = new RoleDto();
+      roleDto.setRoleName("ADMIN");
+      createAccountDto.setRole(roleDto);
+
+      final BadRequestException exception =
+          assertThrows(
+              BadRequestException.class, () -> userService.createAccountWithRole(createAccountDto));
+
+      assertEquals("Pseudo is required", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("should throw when pseudo is blank")
+    void shouldThrowWhenPseudoIsBlank() {
+      final CreateAccountDto createAccountDto = new CreateAccountDto();
+      createAccountDto.setPseudo("   ");
+      final RoleDto roleDto = new RoleDto();
+      roleDto.setRoleName("ADMIN");
+      createAccountDto.setRole(roleDto);
+
+      final BadRequestException exception =
+          assertThrows(
+              BadRequestException.class, () -> userService.createAccountWithRole(createAccountDto));
+
+      assertEquals("Pseudo is required", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("should throw when role is null")
+    void shouldThrowWhenRoleIsNull() {
+      final CreateAccountDto createAccountDto = new CreateAccountDto();
+      createAccountDto.setPseudo("john_doe");
+      createAccountDto.setRole(null);
+
+      final BadRequestException exception =
+          assertThrows(
+              BadRequestException.class, () -> userService.createAccountWithRole(createAccountDto));
+
+      assertEquals("Role is required", exception.getMessage());
     }
   }
 }

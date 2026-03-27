@@ -6,10 +6,15 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
@@ -25,8 +30,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ienrique.ressourceRelationnelle.RessourceRelationnelleApplication;
 import com.ienrique.ressourceRelationnelle.controller.UserController;
+import com.ienrique.ressourceRelationnelle.dto.CreateAccountDto;
 import com.ienrique.ressourceRelationnelle.dto.DeleteAccountDto;
+import com.ienrique.ressourceRelationnelle.dto.RoleDto;
+import com.ienrique.ressourceRelationnelle.dto.UpdateUserDto;
 import com.ienrique.ressourceRelationnelle.dto.UserDto;
+import com.ienrique.ressourceRelationnelle.entity.AccountStatus;
 import com.ienrique.ressourceRelationnelle.entity.AppUser;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.ForbiddenException;
@@ -176,6 +185,112 @@ public class UserControllerTest {
       mockMvc
           .perform(get("/api/users/{userId}", userId).with(jwt()))
           .andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
+  @DisplayName("update user")
+  class UpdateUser {
+
+    @Test
+    @DisplayName("should update user")
+    void shouldUpdateUser() throws Exception {
+      final UUID userId = UUID.randomUUID();
+      final UpdateUserDto request = new UpdateUserDto();
+      request.setPseudo("updated pseudo");
+
+      userService.updateUser(userId, request);
+
+      mockMvc
+          .perform(
+              put("/api/users/{userId}", userId)
+                  .content(objectMapper.writeValueAsString(request))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(jwt()))
+          .andExpect(status().isNoContent());
+    }
+  }
+
+  @Nested
+  @DisplayName("update user status")
+  class UpdateUserStatus {
+
+    @Test
+    @DisplayName("should update user status")
+    void shouldUpdateUserStatus() throws Exception {
+      final UUID userId = UUID.randomUUID();
+
+      userService.updateUserStatus(userId, AccountStatus.DISABLED);
+
+      mockMvc
+          .perform(
+              patch("/api/users/{userId}/status", userId)
+                  .with(jwt())
+                  .content(objectMapper.writeValueAsString(AccountStatus.DISABLED))
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNoContent());
+    }
+  }
+
+  @Nested
+  @DisplayName("get all users")
+  class GetAllUsers {
+
+    @Test
+    @DisplayName("should get users")
+    void shouldGetUsers() throws Exception {
+      final UserDto user1 = new UserDto();
+      final UserDto user2 = new UserDto();
+
+      when(userService.getAllUsers()).thenReturn(List.of(user1, user2));
+
+      mockMvc
+          .perform(get("/api/users").with(jwt()).contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk());
+    }
+  }
+
+  @Nested
+  @DisplayName("get current user")
+  class GetCurrentUser {
+
+    @Test
+    @DisplayName("should return current user")
+    void shouldReturnCurrentUser() throws Exception {
+      final UserDto userDto = new UserDto();
+
+      when(userService.getCurrentUser()).thenReturn(userDto);
+
+      mockMvc
+          .perform(get("/api/users/me").with(jwt()).contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk());
+    }
+  }
+
+  @Nested
+  @DisplayName("create account with role")
+  class CreateAccountWithRole {
+
+    @Test
+    @DisplayName("should create account with role")
+    void shouldCreateAccountWithRole() throws Exception {
+      final CreateAccountDto request = new CreateAccountDto();
+      final RoleDto role = new RoleDto();
+      role.setRoleId(UUID.randomUUID());
+      role.setRoleName("SUPER-ADMIN");
+      request.setPseudo("new account");
+      request.setRole(role);
+      final UserDto userDto = new UserDto();
+
+      when(userService.createAccountWithRole(request)).thenReturn(userDto);
+
+      mockMvc
+          .perform(
+              post("/api/users/with-role")
+                  .with(jwt())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(request)))
+          .andExpect(status().isCreated());
     }
   }
 }

@@ -81,17 +81,17 @@ public class UserServiceImpl implements UserService {
   public UserDto createAccountWithRole(CreateAccountDto createAccount) {
     // vérifie que les champs ne sont pas null
     if (createAccount == null) {
-      throw new RuntimeException("Create account payload is required");
+      throw new BadRequestException("Create account payload is required");
     }
 
     // vérifie que le pseudo ni n'est null ni vide
     if (createAccount.getPseudo() == null || createAccount.getPseudo().isBlank()) {
-      throw new RuntimeException("Pseudo is required");
+      throw new BadRequestException("Pseudo is required");
     }
 
     // vérifie que le role n'est pas null
     if (createAccount.getRole() == null) {
-      throw new RuntimeException("Role is required");
+      throw new BadRequestException("Role is required");
     }
 
     final AppUser user = new AppUser();
