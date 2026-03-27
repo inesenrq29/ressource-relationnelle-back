@@ -34,6 +34,6 @@ public class Friend {
   private AppUser requesterUser;
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "friendReceiverUserId", nullable = false)
+  @JoinColumn(name = "receiverUserId", nullable = false)
   private AppUser receiverUser;
 }
