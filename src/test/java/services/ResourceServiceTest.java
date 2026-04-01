@@ -3,9 +3,7 @@ package services;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,7 +15,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.domain.Specification;
 
 import com.ienrique.ressourceRelationnelle.dto.CreateResourceDto;
 import com.ienrique.ressourceRelationnelle.dto.ResourceDto;
@@ -34,6 +35,8 @@ import com.ienrique.ressourceRelationnelle.repository.CategoryRepository;
 import com.ienrique.ressourceRelationnelle.repository.ResourceRepository;
 import com.ienrique.ressourceRelationnelle.repository.TagRepository;
 import com.ienrique.ressourceRelationnelle.service.ResourceServiceImpl;
+
+import io.github.perplexhub.rsql.RSQLJPASupport;
 
 @ExtendWith(MockitoExtension.class)
 public class ResourceServiceTest {
@@ -431,6 +434,103 @@ public class ResourceServiceTest {
       assertEquals("Resource not found", exception.getMessage());
 
       verify(resourceRepository, never()).save(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("filterResources")
+  class FilterResourcesTest {
+
+    @Test
+    @DisplayName("should filter resources with specification when rsql query is provided")
+    void shouldFilterResourcesWithSpecificationWhenRsqlQueryIsProvided() {
+      final String rsqlQuery = "resourceType==PDF";
+
+      final Resource resource = new Resource();
+      final ResourceDto resourceDto = new ResourceDto();
+
+      final List<Resource> resources = List.of(resource);
+      final List<ResourceDto> resourceDtos = List.of(resourceDto);
+
+      final Specification<Resource> specification = (root, query, criteriaBuilder) -> null;
+
+      try (MockedStatic<RSQLJPASupport> mockedStatic = Mockito.mockStatic(RSQLJPASupport.class)) {
+        mockedStatic
+            .when(() -> RSQLJPASupport.toSpecification(rsqlQuery))
+            .thenReturn(specification);
+
+        when(resourceRepository.findAll(specification)).thenReturn(resources);
+        when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
+
+        final List<ResourceDto> result = resourceService.filterResources(rsqlQuery);
+
+        assertEquals(resourceDtos, result);
+        mockedStatic.verify(() -> RSQLJPASupport.toSpecification(rsqlQuery));
+        verify(resourceRepository).findAll(specification);
+        verify(resourceMapper).toDtos(resources);
+        verifyNoMoreInteractions(resourceRepository, resourceMapper);
+      }
+    }
+
+    @Test
+    @DisplayName("should return all resources when rsql query is null")
+    void shouldReturnAllResourcesWhenRsqlQueryIsNull() {
+      final Resource resource = new Resource();
+      final ResourceDto resourceDto = new ResourceDto();
+
+      final List<Resource> resources = List.of(resource);
+      final List<ResourceDto> resourceDtos = List.of(resourceDto);
+
+      when(resourceRepository.findAll()).thenReturn(resources);
+      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
+
+      final List<ResourceDto> result = resourceService.filterResources(null);
+
+      assertEquals(resourceDtos, result);
+      verify(resourceRepository).findAll();
+      verify(resourceMapper).toDtos(resources);
+      verifyNoMoreInteractions(resourceRepository, resourceMapper);
+    }
+
+    @Test
+    @DisplayName("should return all resources when rsql query is blank")
+    void shouldReturnAllResourcesWhenRsqlQueryIsBlank() {
+      final String rsqlQuery = "   ";
+
+      final Resource resource = new Resource();
+      final ResourceDto resourceDto = new ResourceDto();
+
+      final List<Resource> resources = List.of(resource);
+      final List<ResourceDto> resourceDtos = List.of(resourceDto);
+
+      when(resourceRepository.findAll()).thenReturn(resources);
+      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
+
+      final List<ResourceDto> result = resourceService.filterResources(rsqlQuery);
+
+      assertEquals(resourceDtos, result);
+      verify(resourceRepository).findAll();
+      verify(resourceMapper).toDtos(resources);
+      verifyNoMoreInteractions(resourceRepository, resourceMapper);
+    }
+
+    @Test
+    @DisplayName("should throw bad request exception when rsql query is invalid")
+    void shouldThrowBadRequestExceptionWhenRsqlQueryIsInvalid() {
+      final String rsqlQuery = "resourceType=PDF";
+
+      try (MockedStatic<RSQLJPASupport> mockedStatic =
+          org.mockito.Mockito.mockStatic(RSQLJPASupport.class)) {
+        mockedStatic
+            .when(() -> RSQLJPASupport.toSpecification(rsqlQuery))
+            .thenThrow(new RuntimeException());
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+            com.ienrique.ressourceRelationnelle.exception.BadRequestException.class,
+            () -> resourceService.filterResources(rsqlQuery));
+
+        mockedStatic.verify(() -> RSQLJPASupport.toSpecification(rsqlQuery));
+      }
     }
   }
 }

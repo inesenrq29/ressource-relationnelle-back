@@ -3,6 +3,8 @@ package com.ienrique.ressourceRelationnelle.dto;
 import java.util.List;
 import java.util.UUID;
 
+import com.ienrique.ressourceRelationnelle.entity.ResourceType;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -28,5 +30,7 @@ public class UpdateResourceDto {
 
   @NotNull private UUID categoryId;
 
-  @NotNull private List<@NotBlank @Size(max = 140) String> tags;
+  private List<@NotBlank @Size(max = 140) String> tags;
+
+  @NotNull private ResourceType resourceType;
 }

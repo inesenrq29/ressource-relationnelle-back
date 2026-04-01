@@ -26,4 +26,9 @@ public interface ResourceService {
   void updateResourceStatus(UUID resourceId, UpdateResourceStatusDto status);
 
   // TODO: faire shareResource
+
+  List<ResourceDto> filterResources(String rsqlQuery);
+
+  // TODO: filterResource avec RSQL
+
 }

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
+import com.ienrique.ressourceRelationnelle.entity.ResourceType;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -33,4 +34,6 @@ public class CreateResourceDto {
   @NotNull private UUID categoryId;
 
   private List<@NotBlank @Size(max = 140) String> tags;
+
+  @NotNull private ResourceType resourceType;
 }

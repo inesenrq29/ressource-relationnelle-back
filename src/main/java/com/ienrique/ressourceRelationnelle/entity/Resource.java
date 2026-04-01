@@ -60,4 +60,8 @@ public class Resource {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "categoryId")
   private Category category;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "resourceType", nullable = false)
+  private ResourceType resourceType;
 }

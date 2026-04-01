@@ -37,6 +37,7 @@ import com.ienrique.ressourceRelationnelle.dto.ResourceDto;
 import com.ienrique.ressourceRelationnelle.dto.UpdateResourceDto;
 import com.ienrique.ressourceRelationnelle.dto.UpdateResourceStatusDto;
 import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
+import com.ienrique.ressourceRelationnelle.entity.ResourceType;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
 import com.ienrique.ressourceRelationnelle.service.ResourceService;
 
@@ -149,6 +150,7 @@ public class ResourceControllerTest {
       request.setResourceDescription("Description");
       request.setResourceIsUsed(true);
       request.setStatus(ResourceStatus.DRAFT);
+      request.setResourceType(ResourceType.VIDEO);
       request.setCategoryId(UUID.randomUUID());
       request.setTags(List.of("tag1", "tag2"));
 
@@ -183,6 +185,7 @@ public class ResourceControllerTest {
       request.setResourceTitle("Updated title");
       request.setResourceDescription("Updated description");
       request.setResourceIsUsed(true);
+      request.setResourceType(ResourceType.GAME);
       request.setCategoryId(UUID.randomUUID());
       request.setTags(List.of("tag1", "tag2"));
 

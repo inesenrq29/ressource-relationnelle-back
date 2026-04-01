@@ -5,13 +5,15 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import com.ienrique.ressourceRelationnelle.entity.Resource;
 import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
 
 @Repository
-public interface ResourceRepository extends JpaRepository<Resource, UUID> {
+public interface ResourceRepository
+    extends JpaRepository<Resource, UUID>, JpaSpecificationExecutor<Resource> {
 
   Optional<Resource> findByResourceId(UUID resourceId);
 

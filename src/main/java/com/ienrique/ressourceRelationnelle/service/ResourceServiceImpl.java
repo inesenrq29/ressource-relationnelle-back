@@ -5,6 +5,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import com.ienrique.ressourceRelationnelle.dto.CreateResourceDto;
@@ -22,6 +23,7 @@ import com.ienrique.ressourceRelationnelle.repository.CategoryRepository;
 import com.ienrique.ressourceRelationnelle.repository.ResourceRepository;
 import com.ienrique.ressourceRelationnelle.repository.TagRepository;
 
+import io.github.perplexhub.rsql.RSQLJPASupport;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -67,6 +69,7 @@ public class ResourceServiceImpl implements ResourceService {
     resource.setResourceDescription(createResource.getResourceDescription());
     resource.setResourceIsUsed(createResource.isResourceIsUsed());
     resource.setResourceIsActive(true);
+    resource.setResourceType(createResource.getResourceType());
     resource.setCategory(category);
 
     // par défaut on met en DRAFT
@@ -119,6 +122,7 @@ public class ResourceServiceImpl implements ResourceService {
     resource.setResourceTitle(updateResource.getResourceTitle());
     resource.setResourceDescription(updateResource.getResourceDescription());
     resource.setResourceIsUsed(updateResource.isResourceIsUsed());
+    resource.setResourceType(updateResource.getResourceType());
     resource.setCategory(category);
 
     if (updateResource.getTags() != null) {
@@ -182,6 +186,24 @@ public class ResourceServiceImpl implements ResourceService {
     resource.setStatus(newStatus);
 
     resourceRepository.save(resource);
+  }
+
+  @Override
+  public List<ResourceDto> filterResources(String rsqlQuery) {
+    final List<Resource> resources;
+
+    try {
+      if (rsqlQuery != null && !rsqlQuery.trim().isEmpty()) {
+        final Specification<Resource> specification = RSQLJPASupport.toSpecification(rsqlQuery);
+        resources = resourceRepository.findAll(specification);
+      } else {
+        resources = resourceRepository.findAll();
+      }
+    } catch (final Exception e) {
+      throw new BadRequestException("Invalid filter query");
+    }
+
+    return resourceMapper.toDtos(resources);
   }
 
   private void validateStatusTransition(ResourceStatus current, ResourceStatus next) {
