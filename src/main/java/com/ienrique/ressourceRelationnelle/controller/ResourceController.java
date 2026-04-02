@@ -7,10 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.ienrique.ressourceRelationnelle.dto.CreateResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.ResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.UpdateResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.UpdateResourceStatusDto;
+import com.ienrique.ressourceRelationnelle.dto.*;
 import com.ienrique.ressourceRelationnelle.service.ResourceService;
 
 import jakarta.validation.Valid;
@@ -79,5 +76,18 @@ public class ResourceController {
   public ResponseEntity<List<ResourceDto>> filterResources(
       @RequestParam(required = false) final String filter) {
     return ResponseEntity.ok(resourceService.filterResources(filter));
+  }
+
+  @PostMapping("/{userId}/favorite/{resourceId}")
+  public ResponseEntity<FavoriteDto> addResourceToFavorite(
+      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(resourceService.addResourceToFavorite(userId, resourceId));
+  }
+
+  @GetMapping("/sorted")
+  public ResponseEntity<List<ResourceDto>> sortResources(
+      @RequestParam(defaultValue = "false") final boolean isAscending) {
+    return ResponseEntity.ok(resourceService.sortResources(isAscending));
   }
 }

@@ -5,23 +5,18 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.ienrique.ressourceRelationnelle.dto.CreateResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.ResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.UpdateResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.UpdateResourceStatusDto;
-import com.ienrique.ressourceRelationnelle.entity.Category;
-import com.ienrique.ressourceRelationnelle.entity.Resource;
-import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
-import com.ienrique.ressourceRelationnelle.entity.Tag;
+import com.ienrique.ressourceRelationnelle.dto.*;
+import com.ienrique.ressourceRelationnelle.entity.*;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
+import com.ienrique.ressourceRelationnelle.mapper.FavoriteMapper;
 import com.ienrique.ressourceRelationnelle.mapper.ResourceMapper;
-import com.ienrique.ressourceRelationnelle.repository.CategoryRepository;
-import com.ienrique.ressourceRelationnelle.repository.ResourceRepository;
-import com.ienrique.ressourceRelationnelle.repository.TagRepository;
+import com.ienrique.ressourceRelationnelle.repository.*;
 
 import io.github.perplexhub.rsql.RSQLJPASupport;
 import lombok.RequiredArgsConstructor;
@@ -31,9 +26,12 @@ import lombok.RequiredArgsConstructor;
 public class ResourceServiceImpl implements ResourceService {
 
   private final ResourceRepository resourceRepository;
+  private final AppUserRepository userRepository;
+  private final FavoriteRepository favoriteRepository;
   private final CategoryRepository categoryRepository;
   private final TagRepository tagRepository;
   private final ResourceMapper resourceMapper;
+  private final FavoriteMapper favoriteMapper;
 
   @Override
   public ResourceDto getResourceById(UUID resourceId) {
@@ -189,6 +187,18 @@ public class ResourceServiceImpl implements ResourceService {
   }
 
   @Override
+  public List<ResourceDto> sortResources(boolean isAscending) {
+    final Sort sort =
+        isAscending
+            ? Sort.by("resourceCreatedAt").ascending()
+            : Sort.by("resourceCreatedAt").descending();
+
+    final List<Resource> resources = resourceRepository.findAll(sort);
+
+    return resourceMapper.toDtos(resources);
+  }
+
+  @Override
   public List<ResourceDto> filterResources(String rsqlQuery) {
     final List<Resource> resources;
 
@@ -204,6 +214,29 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     return resourceMapper.toDtos(resources);
+  }
+
+  @Override
+  @Transactional
+  public FavoriteDto addResourceToFavorite(UUID userId, UUID resourceId) {
+    final AppUser user =
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    if (favoriteRepository.existsByAppUserAppUserIdAndResourceResourceId(userId, resourceId)) {
+      throw new BadRequestException("Resource is already in favorites");
+    }
+
+    final Favorite favorite = new Favorite();
+    favorite.setAppUser(user);
+    favorite.setResource(resource);
+
+    final Favorite savedFavorite = favoriteRepository.save(favorite);
+
+    return favoriteMapper.toDto(savedFavorite);
   }
 
   private void validateStatusTransition(ResourceStatus current, ResourceStatus next) {

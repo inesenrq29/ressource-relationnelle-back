@@ -18,22 +18,16 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
-import com.ienrique.ressourceRelationnelle.dto.CreateResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.ResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.UpdateResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.UpdateResourceStatusDto;
-import com.ienrique.ressourceRelationnelle.entity.Category;
-import com.ienrique.ressourceRelationnelle.entity.Resource;
-import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
-import com.ienrique.ressourceRelationnelle.entity.Tag;
+import com.ienrique.ressourceRelationnelle.dto.*;
+import com.ienrique.ressourceRelationnelle.entity.*;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
+import com.ienrique.ressourceRelationnelle.mapper.FavoriteMapper;
 import com.ienrique.ressourceRelationnelle.mapper.ResourceMapper;
-import com.ienrique.ressourceRelationnelle.repository.CategoryRepository;
-import com.ienrique.ressourceRelationnelle.repository.ResourceRepository;
-import com.ienrique.ressourceRelationnelle.repository.TagRepository;
+import com.ienrique.ressourceRelationnelle.repository.*;
 import com.ienrique.ressourceRelationnelle.service.ResourceServiceImpl;
 
 import io.github.perplexhub.rsql.RSQLJPASupport;
@@ -43,8 +37,11 @@ public class ResourceServiceTest {
 
   @Mock private ResourceRepository resourceRepository;
   @Mock private CategoryRepository categoryRepository;
+  @Mock private AppUserRepository userRepository;
+  @Mock private FavoriteRepository favoriteRepository;
   @Mock private TagRepository tagRepository;
   @Mock private ResourceMapper resourceMapper;
+  @Mock private FavoriteMapper favoriteMapper;
 
   @InjectMocks private ResourceServiceImpl resourceService;
 
@@ -531,6 +528,184 @@ public class ResourceServiceTest {
 
         mockedStatic.verify(() -> RSQLJPASupport.toSpecification(rsqlQuery));
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("add resource to favorite")
+  class AddResourceToFavorite {
+
+    @Test
+    @DisplayName("should add resource to favorite")
+    void shouldAddResourceToFavorite() {
+      final UUID userId = UUID.randomUUID();
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+      final UUID resourceId = UUID.randomUUID();
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+      final UUID favoriteId = UUID.randomUUID();
+      final Favorite savedFavorite = new Favorite();
+      savedFavorite.setFavoriteId(favoriteId);
+      savedFavorite.setAppUser(user);
+      savedFavorite.setResource(resource);
+
+      final FavoriteDto favoriteDto = new FavoriteDto(favoriteId, userId, resourceId);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(favoriteRepository.existsByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(false);
+      when(favoriteRepository.save(any(Favorite.class))).thenReturn(savedFavorite);
+      when(favoriteMapper.toDto(savedFavorite)).thenReturn(favoriteDto);
+
+      final FavoriteDto result = resourceService.addResourceToFavorite(userId, resourceId);
+
+      assertEquals(favoriteDto, result);
+
+      verify(userRepository).findById(userId);
+      verify(resourceRepository).findByResourceId(resourceId);
+      verify(favoriteRepository).existsByAppUserAppUserIdAndResourceResourceId(userId, resourceId);
+      verify(favoriteRepository).save(any(Favorite.class));
+      verify(favoriteMapper).toDto(savedFavorite);
+    }
+
+    @Test
+    @DisplayName("should throw when user not found")
+    void shouldThrowWhenUserNotFound() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+      final NotFoundException exception =
+          assertThrows(
+              NotFoundException.class,
+              () -> resourceService.addResourceToFavorite(userId, resourceId));
+
+      assertEquals("User not found", exception.getMessage());
+
+      verify(userRepository).findById(userId);
+      verify(resourceRepository, never()).findByResourceId(any());
+      verify(favoriteRepository, never())
+          .existsByAppUserAppUserIdAndResourceResourceId(any(), any());
+      verify(favoriteRepository, never()).save(any());
+      verify(favoriteMapper, never()).toDto(any());
+    }
+
+    @Test
+    @DisplayName("should throw when resource not found")
+    void shouldThrowWhenResourceNotFound() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.empty());
+
+      final NotFoundException exception =
+          assertThrows(
+              NotFoundException.class,
+              () -> resourceService.addResourceToFavorite(userId, resourceId));
+
+      assertEquals("Resource not found", exception.getMessage());
+
+      verify(userRepository).findById(userId);
+      verify(resourceRepository).findByResourceId(resourceId);
+      verify(favoriteRepository, never())
+          .existsByAppUserAppUserIdAndResourceResourceId(any(), any());
+      verify(favoriteRepository, never()).save(any());
+      verify(favoriteMapper, never()).toDto(any());
+    }
+
+    @Test
+    @DisplayName("should throw when resource is already in favorites")
+    void shouldThrowWhenResourceIsAlreadyInFavorites() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(favoriteRepository.existsByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(true);
+
+      final BadRequestException exception =
+          assertThrows(
+              BadRequestException.class,
+              () -> resourceService.addResourceToFavorite(userId, resourceId));
+
+      assertEquals("Resource is already in favorites", exception.getMessage());
+
+      verify(userRepository).findById(userId);
+      verify(resourceRepository).findByResourceId(resourceId);
+      verify(favoriteRepository).existsByAppUserAppUserIdAndResourceResourceId(userId, resourceId);
+      verify(favoriteRepository, never()).save(any());
+      verify(favoriteMapper, never()).toDto(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("sort resources")
+  class SortResources {
+
+    @Test
+    @DisplayName("should sort resources in ascending order")
+    void shouldSortResourcesInAscendingOrder() {
+      final List<Resource> resources = List.of(new Resource(), new Resource());
+      final List<ResourceDto> resourceDtos = List.of(new ResourceDto(), new ResourceDto());
+
+      when(resourceRepository.findAll(Sort.by("resourceCreatedAt").ascending()))
+          .thenReturn(resources);
+      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
+
+      final List<ResourceDto> result = resourceService.sortResources(true);
+
+      assertEquals(resourceDtos, result);
+      verify(resourceRepository).findAll(Sort.by("resourceCreatedAt").ascending());
+      verify(resourceMapper).toDtos(resources);
+    }
+
+    @Test
+    @DisplayName("should sort resources in descending order")
+    void shouldSortResourcesInDescendingOrder() {
+      final List<Resource> resources = List.of(new Resource(), new Resource());
+      final List<ResourceDto> resourceDtos = List.of(new ResourceDto(), new ResourceDto());
+
+      when(resourceRepository.findAll(Sort.by("resourceCreatedAt").descending()))
+          .thenReturn(resources);
+      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
+
+      final List<ResourceDto> result = resourceService.sortResources(false);
+
+      assertEquals(resourceDtos, result);
+      verify(resourceRepository).findAll(Sort.by("resourceCreatedAt").descending());
+      verify(resourceMapper).toDtos(resources);
+    }
+
+    @Test
+    @DisplayName("should return empty list when no resources found")
+    void shouldReturnEmptyListWhenNoResourcesFound() {
+      final List<Resource> resources = List.of();
+      final List<ResourceDto> resourceDtos = List.of();
+
+      when(resourceRepository.findAll(Sort.by("resourceCreatedAt").descending()))
+          .thenReturn(resources);
+      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
+
+      final List<ResourceDto> result = resourceService.sortResources(false);
+
+      assertEquals(resourceDtos, result);
+      verify(resourceRepository).findAll(Sort.by("resourceCreatedAt").descending());
+      verify(resourceMapper).toDtos(resources);
     }
   }
 }

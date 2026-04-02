@@ -32,10 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ienrique.ressourceRelationnelle.RessourceRelationnelleApplication;
 import com.ienrique.ressourceRelationnelle.controller.ResourceController;
-import com.ienrique.ressourceRelationnelle.dto.CreateResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.ResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.UpdateResourceDto;
-import com.ienrique.ressourceRelationnelle.dto.UpdateResourceStatusDto;
+import com.ienrique.ressourceRelationnelle.dto.*;
 import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
 import com.ienrique.ressourceRelationnelle.entity.ResourceType;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
@@ -351,6 +348,79 @@ public class ResourceControllerTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(request)))
           .andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
+  @DisplayName("add resource to favorite")
+  class AddResourceToFavorite {
+
+    @Test
+    @DisplayName("should add resource to favorites")
+    void shouldAddResourceToFavorite() throws Exception {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+      final FavoriteDto favoriteDto = new FavoriteDto();
+
+      when(resourceService.addResourceToFavorite(eq(userId), eq(resourceId)))
+          .thenReturn(favoriteDto);
+
+      mockMvc
+          .perform(
+              post("/api/resources/{userId}/favorite/{resourceId}", userId, resourceId)
+                  .with(jwt())
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isCreated());
+
+      verify(resourceService).addResourceToFavorite(eq(userId), eq(resourceId));
+    }
+  }
+
+  @Nested
+  @DisplayName("sort resources")
+  class SortResources {
+
+    @Test
+    @DisplayName("should return sorted resources in ascending order")
+    void shouldReturnSortedResourcesInAscendingOrder() throws Exception {
+      final ResourceDto resource1 = new ResourceDto();
+      final ResourceDto resource2 = new ResourceDto();
+
+      final List<ResourceDto> resources = List.of(resource1, resource2);
+
+      when(resourceService.sortResources(true)).thenReturn(resources);
+
+      mockMvc
+          .perform(
+              get("/api/resources/sorted")
+                  .with(jwt())
+                  .param("isAscending", "true")
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk());
+
+      verify(resourceService).sortResources(true);
+    }
+
+    @Test
+    @DisplayName("should return sorted resources in descending order")
+    void shouldReturnSortedResourcesInDescendingOrder() throws Exception {
+      final ResourceDto resource1 = new ResourceDto();
+      final ResourceDto resource2 = new ResourceDto();
+
+      final List<ResourceDto> resources = List.of(resource1, resource2);
+
+      when(resourceService.sortResources(false)).thenReturn(resources);
+
+      mockMvc
+          .perform(
+              get("/api/resources/sorted")
+                  .with(jwt())
+                  .param("isAscending", "false")
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk());
+
+      verify(resourceService).sortResources(false);
     }
   }
 }
