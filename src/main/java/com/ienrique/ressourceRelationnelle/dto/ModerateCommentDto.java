@@ -1,5 +1,7 @@
 package com.ienrique.ressourceRelationnelle.dto;
 
+import com.ienrique.ressourceRelationnelle.entity.CommentStatus;
+
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,8 +14,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ModerateCommentDto {
 
-  private boolean isModerated;
+  private CommentStatus status;
 
   @Size(max = 500)
-  private String reason;
+  private String moderationReason;
 }

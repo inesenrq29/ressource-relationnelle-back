@@ -1,6 +1,7 @@
 package com.ienrique.ressourceRelationnelle.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +15,6 @@ public interface CommentsRepository extends JpaRepository<Comments, UUID> {
   List<Comments> findByResourceResourceId(UUID resourceId);
 
   List<Comments> findByAuthor(String author);
+
+  Optional<Comments> findByCommentsId(UUID commentsId);
 }

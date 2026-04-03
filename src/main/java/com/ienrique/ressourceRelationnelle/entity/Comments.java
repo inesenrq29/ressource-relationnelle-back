@@ -3,14 +3,7 @@ package com.ienrique.ressourceRelationnelle.entity;
 import java.time.Instant;
 import java.util.UUID;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -24,6 +17,10 @@ public class Comments {
   @GeneratedValue
   @Column(name = "commentsId", nullable = false, updatable = false)
   private UUID commentsId;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "parentCommentId") // permet de stocker l'id du commentaire auquel on répond
+  private Comments parentComment;
 
   @Column(name = "publicationDate", nullable = false)
   private Instant publicationDate;
@@ -44,7 +41,14 @@ public class Comments {
   @Column(name = "commentsContent", nullable = false, columnDefinition = "TEXT")
   private String commentsContent;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "status", nullable = false)
+  private CommentStatus status;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "resourceId", nullable = false)
   private Resource resource;
+
+  @Column(name = "moderationReason")
+  private String moderationReason;
 }
