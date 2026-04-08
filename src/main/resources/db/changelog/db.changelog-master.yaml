@@ -19,3 +19,5 @@ databaseChangeLog:
       file: db/changelog/009_add_resource_type_enum.sql
   - include:
       file: db/changelog/010_update_comments_table.sql
+  - include:
+      file: db/changelog/011_create_progression_table.sql

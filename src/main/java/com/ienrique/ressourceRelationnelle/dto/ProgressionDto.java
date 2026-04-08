@@ -1,8 +1,5 @@
 package com.ienrique.ressourceRelationnelle.dto;
 
-import java.util.UUID;
-
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,11 +9,11 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class FavoriteDto {
+public class ProgressionDto {
 
-  @NotNull private UUID favoriteId;
+  private long favoritesCount;
 
-  @NotNull private UUID appUserId;
+  private long exploitedCount;
 
-  @NotNull private UUID resourceId;
+  private long setAsideCount;
 }

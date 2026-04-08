@@ -27,5 +27,17 @@ public interface ResourceService {
 
   List<ResourceDto> filterResources(String rsqlQuery);
 
-  FavoriteDto addResourceToFavorite(UUID userId, UUID resourceId);
+  void addResourceToFavorite(UUID userId, UUID resourceId);
+
+  void removeResourceFromFavorite(UUID userId, UUID resourceId);
+
+  void setAsideResource(UUID userId, UUID resourceId);
+
+  void unsetAsideResource(UUID userId, UUID resourceId);
+
+  void markResourceAsExploited(UUID userId, UUID resourceId);
+
+  void markResourceAsUnexploited(UUID userId, UUID resourceId);
+
+  ProgressionDto getProgression(UUID userId);
 }

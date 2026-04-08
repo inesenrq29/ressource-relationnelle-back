@@ -79,10 +79,50 @@ public class ResourceController {
   }
 
   @PostMapping("/{userId}/favorite/{resourceId}")
-  public ResponseEntity<FavoriteDto> addResourceToFavorite(
+  public ResponseEntity<Void> addResourceToFavorite(
       @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(resourceService.addResourceToFavorite(userId, resourceId));
+    resourceService.addResourceToFavorite(userId, resourceId);
+    return ResponseEntity.status(HttpStatus.CREATED).build();
+  }
+
+  @DeleteMapping("/{userId}/favorite/{resourceId}")
+  public ResponseEntity<Void> removeResourceFromFavorite(
+      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+    resourceService.removeResourceFromFavorite(userId, resourceId);
+    return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+  }
+
+  @PostMapping("/{userId}/set-aside/{resourceId}")
+  public ResponseEntity<Void> setAsideResource(
+      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+    resourceService.setAsideResource(userId, resourceId);
+    return ResponseEntity.status(HttpStatus.CREATED).build();
+  }
+
+  @DeleteMapping("/{userId}/set-aside/{resourceId}")
+  public ResponseEntity<Void> unsetAsideResource(
+      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+    resourceService.unsetAsideResource(userId, resourceId);
+    return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+  }
+
+  @PostMapping("/{userId}/exploited/{resourceId}")
+  public ResponseEntity<Void> markResourceAsExploited(
+      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+    resourceService.markResourceAsExploited(userId, resourceId);
+    return ResponseEntity.status(HttpStatus.CREATED).build();
+  }
+
+  @DeleteMapping("/{userId}/exploited/{resourceId}")
+  public ResponseEntity<Void> markResourceAsUnexploited(
+      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+    resourceService.markResourceAsUnexploited(userId, resourceId);
+    return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+  }
+
+  @GetMapping("/{userId}/progressions")
+  public ResponseEntity<ProgressionDto> getProgression(@PathVariable final UUID userId) {
+    return ResponseEntity.ok(resourceService.getProgression(userId));
   }
 
   @GetMapping("/sorted")

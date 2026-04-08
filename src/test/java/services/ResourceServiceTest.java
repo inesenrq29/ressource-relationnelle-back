@@ -1,7 +1,6 @@
 package services;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -25,7 +24,6 @@ import com.ienrique.ressourceRelationnelle.dto.*;
 import com.ienrique.ressourceRelationnelle.entity.*;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
-import com.ienrique.ressourceRelationnelle.mapper.FavoriteMapper;
 import com.ienrique.ressourceRelationnelle.mapper.ResourceMapper;
 import com.ienrique.ressourceRelationnelle.repository.*;
 import com.ienrique.ressourceRelationnelle.service.ResourceServiceImpl;
@@ -38,10 +36,9 @@ public class ResourceServiceTest {
   @Mock private ResourceRepository resourceRepository;
   @Mock private CategoryRepository categoryRepository;
   @Mock private AppUserRepository userRepository;
-  @Mock private FavoriteRepository favoriteRepository;
+  @Mock private ProgressionRepository progressionRepository;
   @Mock private TagRepository tagRepository;
   @Mock private ResourceMapper resourceMapper;
-  @Mock private FavoriteMapper favoriteMapper;
 
   @InjectMocks private ResourceServiceImpl resourceService;
 
@@ -536,120 +533,532 @@ public class ResourceServiceTest {
   class AddResourceToFavorite {
 
     @Test
-    @DisplayName("should add resource to favorite")
-    void shouldAddResourceToFavorite() {
+    @DisplayName("should add resource to favorite when progression does not exist")
+    void shouldAddResourceToFavoriteWhenProgressionDoesNotExist() {
       final UUID userId = UUID.randomUUID();
-      final AppUser user = new AppUser();
-      user.setAppUserId(userId);
       final UUID resourceId = UUID.randomUUID();
 
+      final AppUser user = new AppUser();
       final Resource resource = new Resource();
-      resource.setResourceId(resourceId);
-      final UUID favoriteId = UUID.randomUUID();
-      final Favorite savedFavorite = new Favorite();
-      savedFavorite.setFavoriteId(favoriteId);
-      savedFavorite.setAppUser(user);
-      savedFavorite.setResource(resource);
-
-      final FavoriteDto favoriteDto = new FavoriteDto(favoriteId, userId, resourceId);
 
       when(userRepository.findById(userId)).thenReturn(Optional.of(user));
       when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
-      when(favoriteRepository.existsByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
-          .thenReturn(false);
-      when(favoriteRepository.save(any(Favorite.class))).thenReturn(savedFavorite);
-      when(favoriteMapper.toDto(savedFavorite)).thenReturn(favoriteDto);
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.empty());
 
-      final FavoriteDto result = resourceService.addResourceToFavorite(userId, resourceId);
+      resourceService.addResourceToFavorite(userId, resourceId);
 
-      assertEquals(favoriteDto, result);
-
-      verify(userRepository).findById(userId);
-      verify(resourceRepository).findByResourceId(resourceId);
-      verify(favoriteRepository).existsByAppUserAppUserIdAndResourceResourceId(userId, resourceId);
-      verify(favoriteRepository).save(any(Favorite.class));
-      verify(favoriteMapper).toDto(savedFavorite);
+      verify(progressionRepository)
+          .save(
+              argThat(
+                  progression ->
+                      progression.isFavorite()
+                          && progression.getAppUser().equals(user)
+                          && progression.getResource().equals(resource)));
     }
 
     @Test
-    @DisplayName("should throw when user not found")
-    void shouldThrowWhenUserNotFound() {
+    @DisplayName("should add resource to favorite when progression exists")
+    void shouldAddResourceToFavoriteWhenProgressionExists() {
       final UUID userId = UUID.randomUUID();
       final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      final Progression progression = new Progression();
+      progression.setFavorite(false);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.addResourceToFavorite(userId, resourceId);
+
+      assertTrue(progression.isFavorite());
+      verify(progressionRepository).save(progression);
+    }
+
+    @Test
+    @DisplayName("should throw exception when resource already in favorites")
+    void shouldThrowWhenAlreadyFavorite() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      final Progression progression = new Progression();
+      progression.setFavorite(true);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      assertThrows(
+          BadRequestException.class,
+          () -> resourceService.addResourceToFavorite(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("remove resource from favorite")
+  class RemoveResourceFromFavorite {
+
+    @Test
+    @DisplayName("should throw when progression is not found while removing favorite")
+    void shouldThrowWhenProgressionNotFoundWhileRemovingFavorite() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class,
+          () -> resourceService.removeResourceFromFavorite(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+      verify(progressionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("should throw when resource is not in favorites")
+    void shouldThrowWhenResourceIsNotInFavorites() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setFavorite(false);
+      progression.setSetAside(false);
+      progression.setExploited(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      assertThrows(
+          BadRequestException.class,
+          () -> resourceService.removeResourceFromFavorite(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+      verify(progressionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("should delete progression when removing favorite and no status remains true")
+    void shouldDeleteProgressionWhenRemovingFavoriteAndNoStatusRemainsTrue() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setFavorite(true);
+      progression.setSetAside(false);
+      progression.setExploited(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.removeResourceFromFavorite(userId, resourceId);
+
+      assertFalse(progression.isFavorite());
+      verify(progressionRepository).delete(progression);
+      verify(progressionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should save progression when removing favorite and another status remains true")
+    void shouldSaveProgressionWhenRemovingFavoriteAndAnotherStatusRemainsTrue() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setFavorite(true);
+      progression.setSetAside(true);
+      progression.setExploited(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.removeResourceFromFavorite(userId, resourceId);
+
+      assertFalse(progression.isFavorite());
+      assertTrue(progression.isSetAside());
+      verify(progressionRepository).save(progression);
+      verify(progressionRepository, never()).delete(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("mark resource as exploited")
+  class MarkResourceAsExploited {
+
+    @Test
+    @DisplayName("should mark resource as exploited when progression does not exist")
+    void shouldMarkResourceAsExploitedWhenProgressionDoesNotExist() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.empty());
+
+      resourceService.markResourceAsExploited(userId, resourceId);
+
+      verify(progressionRepository)
+          .save(
+              argThat(
+                  progression ->
+                      progression.isExploited()
+                          && progression.getAppUser().equals(user)
+                          && progression.getResource().equals(resource)));
+    }
+
+    @Test
+    @DisplayName("should mark resource as exploited when progression exists")
+    void shouldMarkResourceAsExploitedWhenProgressionExists() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      final Progression progression = new Progression();
+      progression.setExploited(false);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.markResourceAsExploited(userId, resourceId);
+
+      assertTrue(progression.isExploited());
+      verify(progressionRepository).save(progression);
+    }
+
+    @Test
+    @DisplayName("should throw exception when resource already exploited")
+    void shouldThrowWhenAlreadyExploited() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      final Progression progression = new Progression();
+      progression.setExploited(true);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      assertThrows(
+          BadRequestException.class,
+          () -> resourceService.markResourceAsExploited(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("mark resource as unexploited")
+  class MarkResourceAsUnexploited {
+
+    @Test
+    @DisplayName("should throw when progression is not found while unmarking exploited resource")
+    void shouldThrowWhenProgressionNotFoundWhileUnmarkingExploitedResource() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class,
+          () -> resourceService.markResourceAsUnexploited(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+      verify(progressionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("should throw when resource is not exploited")
+    void shouldThrowWhenResourceIsNotExploited() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setExploited(false);
+      progression.setFavorite(false);
+      progression.setSetAside(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      assertThrows(
+          BadRequestException.class,
+          () -> resourceService.markResourceAsUnexploited(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+      verify(progressionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName(
+        "should delete progression when unmarking exploited resource and no status remains true")
+    void shouldDeleteProgressionWhenUnmarkingExploitedResourceAndNoStatusRemainsTrue() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setExploited(true);
+      progression.setFavorite(false);
+      progression.setSetAside(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.markResourceAsUnexploited(userId, resourceId);
+
+      assertFalse(progression.isExploited());
+      verify(progressionRepository).delete(progression);
+      verify(progressionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName(
+        "should save progression when unmarking exploited resource and another status remains true")
+    void shouldSaveProgressionWhenUnmarkingExploitedResourceAndAnotherStatusRemainsTrue() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setExploited(true);
+      progression.setFavorite(true);
+      progression.setSetAside(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.markResourceAsUnexploited(userId, resourceId);
+
+      assertFalse(progression.isExploited());
+      assertTrue(progression.isFavorite());
+      verify(progressionRepository).save(progression);
+      verify(progressionRepository, never()).delete(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("set aside resource")
+  class SetAsideResource {
+
+    @Test
+    @DisplayName("should set aside resource when progression does not exist")
+    void shouldSetAsideResourceWhenProgressionDoesNotExist() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.empty());
+
+      resourceService.setAsideResource(userId, resourceId);
+
+      verify(progressionRepository)
+          .save(
+              argThat(
+                  progression ->
+                      progression.isSetAside()
+                          && progression.getAppUser().equals(user)
+                          && progression.getResource().equals(resource)));
+    }
+
+    @Test
+    @DisplayName("should set aside resource when progression exists")
+    void shouldSetAsideResourceWhenProgressionExists() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      final Progression progression = new Progression();
+      progression.setSetAside(false);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.setAsideResource(userId, resourceId);
+
+      assertTrue(progression.isSetAside());
+      verify(progressionRepository).save(progression);
+    }
+
+    @Test
+    @DisplayName("should throw exception when resource already set aside")
+    void shouldThrowWhenAlreadyExploited() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      final Progression progression = new Progression();
+      progression.setSetAside(true);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      assertThrows(
+          BadRequestException.class, () -> resourceService.setAsideResource(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("unset aside resource")
+  class UnsetAsideResource {
+
+    @Test
+    @DisplayName("should throw when progression is not found while unsetting aside resource")
+    void shouldThrowWhenProgressionNotFoundWhileUnsettingAsideResource() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class, () -> resourceService.unsetAsideResource(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+      verify(progressionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("should throw when resource is not set aside")
+    void shouldThrowWhenResourceIsNotSetAside() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setSetAside(false);
+      progression.setFavorite(false);
+      progression.setExploited(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      assertThrows(
+          BadRequestException.class, () -> resourceService.unsetAsideResource(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+      verify(progressionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("should delete progression when unsetting aside and no status remains true")
+    void shouldDeleteProgressionWhenUnsettingAsideAndNoStatusRemainsTrue() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setSetAside(true);
+      progression.setFavorite(false);
+      progression.setExploited(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.unsetAsideResource(userId, resourceId);
+
+      assertFalse(progression.isSetAside());
+      verify(progressionRepository).delete(progression);
+      verify(progressionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should save progression when unsetting aside and another status remains true")
+    void shouldSaveProgressionWhenUnsettingAsideAndAnotherStatusRemainsTrue() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setSetAside(true);
+      progression.setFavorite(true);
+      progression.setExploited(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.unsetAsideResource(userId, resourceId);
+
+      assertFalse(progression.isSetAside());
+      assertTrue(progression.isFavorite());
+      verify(progressionRepository).save(progression);
+      verify(progressionRepository, never()).delete(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("get progression")
+  class GetProgression {
+
+    @Test
+    @DisplayName("should return progression counts for a user")
+    void shouldReturnProgressionCountsForUser() {
+      final UUID userId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(progressionRepository.countByAppUserAppUserIdAndFavoriteTrue(userId)).thenReturn(5L);
+      when(progressionRepository.countByAppUserAppUserIdAndExploitedTrue(userId)).thenReturn(3L);
+      when(progressionRepository.countByAppUserAppUserIdAndSetAsideTrue(userId)).thenReturn(2L);
+
+      final ProgressionDto result = resourceService.getProgression(userId);
+
+      assertEquals(5L, result.getFavoritesCount());
+      assertEquals(3L, result.getExploitedCount());
+      assertEquals(2L, result.getSetAsideCount());
+
+      verify(userRepository).findById(userId);
+      verify(progressionRepository).countByAppUserAppUserIdAndFavoriteTrue(userId);
+      verify(progressionRepository).countByAppUserAppUserIdAndExploitedTrue(userId);
+      verify(progressionRepository).countByAppUserAppUserIdAndSetAsideTrue(userId);
+    }
+
+    @Test
+    @DisplayName("should throw when user not found for progression")
+    void shouldThrowWhenUserNotFoundForProgression() {
+      final UUID userId = UUID.randomUUID();
 
       when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-      final NotFoundException exception =
-          assertThrows(
-              NotFoundException.class,
-              () -> resourceService.addResourceToFavorite(userId, resourceId));
+      assertThrows(NotFoundException.class, () -> resourceService.getProgression(userId));
 
-      assertEquals("User not found", exception.getMessage());
-
-      verify(userRepository).findById(userId);
-      verify(resourceRepository, never()).findByResourceId(any());
-      verify(favoriteRepository, never())
-          .existsByAppUserAppUserIdAndResourceResourceId(any(), any());
-      verify(favoriteRepository, never()).save(any());
-      verify(favoriteMapper, never()).toDto(any());
-    }
-
-    @Test
-    @DisplayName("should throw when resource not found")
-    void shouldThrowWhenResourceNotFound() {
-      final UUID userId = UUID.randomUUID();
-      final UUID resourceId = UUID.randomUUID();
-
-      final AppUser user = new AppUser();
-      user.setAppUserId(userId);
-
-      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.empty());
-
-      final NotFoundException exception =
-          assertThrows(
-              NotFoundException.class,
-              () -> resourceService.addResourceToFavorite(userId, resourceId));
-
-      assertEquals("Resource not found", exception.getMessage());
-
-      verify(userRepository).findById(userId);
-      verify(resourceRepository).findByResourceId(resourceId);
-      verify(favoriteRepository, never())
-          .existsByAppUserAppUserIdAndResourceResourceId(any(), any());
-      verify(favoriteRepository, never()).save(any());
-      verify(favoriteMapper, never()).toDto(any());
-    }
-
-    @Test
-    @DisplayName("should throw when resource is already in favorites")
-    void shouldThrowWhenResourceIsAlreadyInFavorites() {
-      final UUID userId = UUID.randomUUID();
-      final UUID resourceId = UUID.randomUUID();
-
-      final AppUser user = new AppUser();
-      user.setAppUserId(userId);
-
-      final Resource resource = new Resource();
-      resource.setResourceId(resourceId);
-
-      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
-      when(favoriteRepository.existsByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
-          .thenReturn(true);
-
-      final BadRequestException exception =
-          assertThrows(
-              BadRequestException.class,
-              () -> resourceService.addResourceToFavorite(userId, resourceId));
-
-      assertEquals("Resource is already in favorites", exception.getMessage());
-
-      verify(userRepository).findById(userId);
-      verify(resourceRepository).findByResourceId(resourceId);
-      verify(favoriteRepository).existsByAppUserAppUserIdAndResourceResourceId(userId, resourceId);
-      verify(favoriteRepository, never()).save(any());
-      verify(favoriteMapper, never()).toDto(any());
+      verify(progressionRepository, never()).countByAppUserAppUserIdAndFavoriteTrue(any());
+      verify(progressionRepository, never()).countByAppUserAppUserIdAndExploitedTrue(any());
+      verify(progressionRepository, never()).countByAppUserAppUserIdAndSetAsideTrue(any());
     }
   }
 

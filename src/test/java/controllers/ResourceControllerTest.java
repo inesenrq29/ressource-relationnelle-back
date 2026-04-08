@@ -352,28 +352,142 @@ public class ResourceControllerTest {
   }
 
   @Nested
-  @DisplayName("add resource to favorite")
+  @DisplayName("addResourceToFavorite")
   class AddResourceToFavorite {
 
     @Test
-    @DisplayName("should add resource to favorites")
-    void shouldAddResourceToFavorite() throws Exception {
+    @DisplayName("should return 201 when adding favorite")
+    void shouldReturn201WhenAddingFavorite() throws Exception {
       final UUID userId = UUID.randomUUID();
       final UUID resourceId = UUID.randomUUID();
-      final FavoriteDto favoriteDto = new FavoriteDto();
-
-      when(resourceService.addResourceToFavorite(eq(userId), eq(resourceId)))
-          .thenReturn(favoriteDto);
 
       mockMvc
           .perform(
-              post("/api/resources/{userId}/favorite/{resourceId}", userId, resourceId)
-                  .with(jwt())
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON))
+              post("/api/resources/{userId}/favorite/{resourceId}", userId, resourceId).with(jwt()))
           .andExpect(status().isCreated());
 
-      verify(resourceService).addResourceToFavorite(eq(userId), eq(resourceId));
+      verify(resourceService).addResourceToFavorite(userId, resourceId);
+    }
+  }
+
+  @Nested
+  @DisplayName("removeResourceFromFavorite")
+  class RemoveResourceFromFavorite {
+
+    @Test
+    @DisplayName("should return 204 when removing favorite")
+    void shouldReturn204WhenRemovingFavorite() throws Exception {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+      mockMvc
+          .perform(
+              delete("/api/resources/{userId}/favorite/{resourceId}", userId, resourceId)
+                  .with(jwt()))
+          .andExpect(status().isNoContent());
+
+      verify(resourceService).removeResourceFromFavorite(userId, resourceId);
+    }
+  }
+
+  @Nested
+  @DisplayName("setAsideResource")
+  class SetAsideResource {
+
+    @Test
+    @DisplayName("should return 201 when setting aside")
+    void shouldReturn201WhenSettingAside() throws Exception {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+      mockMvc
+          .perform(
+              post("/api/resources/{userId}/set-aside/{resourceId}", userId, resourceId)
+                  .with(jwt()))
+          .andExpect(status().isCreated());
+
+      verify(resourceService).setAsideResource(userId, resourceId);
+    }
+  }
+
+  @Nested
+  @DisplayName("unsetAsideResource")
+  class UnsetAsideResource {
+
+    @Test
+    @DisplayName("should return 204 when unsetting aside")
+    void shouldReturn204WhenUnsettingAside() throws Exception {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+      mockMvc
+          .perform(
+              delete("/api/resources/{userId}/set-aside/{resourceId}", userId, resourceId)
+                  .with(jwt()))
+          .andExpect(status().isNoContent());
+
+      verify(resourceService).unsetAsideResource(userId, resourceId);
+    }
+  }
+
+  @Nested
+  @DisplayName("markResourceAsExploited")
+  class MarkResourceAsExploited {
+
+    @Test
+    @DisplayName("should return 201 when marking exploited")
+    void shouldReturn201WhenMarkingExploited() throws Exception {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+      mockMvc
+          .perform(
+              post("/api/resources/{userId}/exploited/{resourceId}", userId, resourceId)
+                  .with(jwt()))
+          .andExpect(status().isCreated());
+
+      verify(resourceService).markResourceAsExploited(userId, resourceId);
+    }
+  }
+
+  @Nested
+  @DisplayName("markResourceAsUnexploited")
+  class MarkResourceAsUnexploited {
+
+    @Test
+    @DisplayName("should return 204 when unmarking exploited")
+    void shouldReturn204WhenUnmarkingExploited() throws Exception {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+      mockMvc
+          .perform(
+              delete("/api/resources/{userId}/exploited/{resourceId}", userId, resourceId)
+                  .with(jwt()))
+          .andExpect(status().isNoContent());
+
+      verify(resourceService).markResourceAsUnexploited(userId, resourceId);
+    }
+  }
+
+  @Nested
+  @DisplayName("getProgression")
+  class GetProgression {
+
+    @Test
+    @DisplayName("should return 200 with progression")
+    void shouldReturn200WithProgression() throws Exception {
+      final UUID userId = UUID.randomUUID();
+      final ProgressionDto dto = new ProgressionDto();
+      dto.setFavoritesCount(5);
+      dto.setSetAsideCount(2);
+      dto.setExploitedCount(3);
+
+      when(resourceService.getProgression(userId)).thenReturn(dto);
+
+      mockMvc
+          .perform(get("/api/resources/{userId}/progressions", userId).with(jwt()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.favoritesCount").value(5))
+          .andExpect(jsonPath("$.setAsideCount").value(2))
+          .andExpect(jsonPath("$.exploitedCount").value(3));
+
+      verify(resourceService).getProgression(userId);
     }
   }
 

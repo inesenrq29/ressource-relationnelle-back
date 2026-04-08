@@ -14,7 +14,6 @@ import com.ienrique.ressourceRelationnelle.dto.*;
 import com.ienrique.ressourceRelationnelle.entity.*;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
-import com.ienrique.ressourceRelationnelle.mapper.FavoriteMapper;
 import com.ienrique.ressourceRelationnelle.mapper.ResourceMapper;
 import com.ienrique.ressourceRelationnelle.repository.*;
 
@@ -27,11 +26,10 @@ public class ResourceServiceImpl implements ResourceService {
 
   private final ResourceRepository resourceRepository;
   private final AppUserRepository userRepository;
-  private final FavoriteRepository favoriteRepository;
+  private final ProgressionRepository progressionRepository;
   private final CategoryRepository categoryRepository;
   private final TagRepository tagRepository;
   private final ResourceMapper resourceMapper;
-  private final FavoriteMapper favoriteMapper;
 
   @Override
   public ResourceDto getResourceById(UUID resourceId) {
@@ -65,7 +63,6 @@ public class ResourceServiceImpl implements ResourceService {
     final Resource resource = new Resource();
     resource.setResourceTitle(createResource.getResourceTitle());
     resource.setResourceDescription(createResource.getResourceDescription());
-    resource.setResourceIsUsed(createResource.isResourceIsUsed());
     resource.setResourceIsActive(true);
     resource.setResourceType(createResource.getResourceType());
     resource.setCategory(category);
@@ -119,7 +116,6 @@ public class ResourceServiceImpl implements ResourceService {
 
     resource.setResourceTitle(updateResource.getResourceTitle());
     resource.setResourceDescription(updateResource.getResourceDescription());
-    resource.setResourceIsUsed(updateResource.isResourceIsUsed());
     resource.setResourceType(updateResource.getResourceType());
     resource.setCategory(category);
 
@@ -218,7 +214,7 @@ public class ResourceServiceImpl implements ResourceService {
 
   @Override
   @Transactional
-  public FavoriteDto addResourceToFavorite(UUID userId, UUID resourceId) {
+  public void addResourceToFavorite(UUID userId, UUID resourceId) {
     final AppUser user =
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
     final Resource resource =
@@ -226,17 +222,165 @@ public class ResourceServiceImpl implements ResourceService {
             .findByResourceId(resourceId)
             .orElseThrow(() -> new NotFoundException("Resource not found"));
 
-    if (favoriteRepository.existsByAppUserAppUserIdAndResourceResourceId(userId, resourceId)) {
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseGet(
+                () -> {
+                  final Progression newProgression = new Progression();
+                  newProgression.setAppUser(user);
+                  newProgression.setResource(resource);
+                  return newProgression;
+                });
+
+    if (progression.isFavorite()) {
       throw new BadRequestException("Resource is already in favorites");
     }
 
-    final Favorite favorite = new Favorite();
-    favorite.setAppUser(user);
-    favorite.setResource(resource);
+    progression.setFavorite(true);
 
-    final Favorite savedFavorite = favoriteRepository.save(favorite);
+    progressionRepository.save(progression);
+  }
 
-    return favoriteMapper.toDto(savedFavorite);
+  @Override
+  @Transactional
+  public void removeResourceFromFavorite(UUID userId, UUID resourceId) {
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseThrow(() -> new NotFoundException("Progression not found"));
+
+    if (!progression.isFavorite()) {
+      throw new BadRequestException("Resource is not in favorites yet");
+    }
+
+    progression.setFavorite(false);
+
+    if (!progression.isFavorite() && !progression.isSetAside() && !progression.isExploited()) {
+      progressionRepository.delete(progression);
+    } else {
+      progressionRepository.save(progression);
+    }
+  }
+
+  @Override
+  @Transactional
+  public void setAsideResource(UUID userId, UUID resourceId) {
+    final AppUser user =
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseGet(
+                () -> {
+                  final Progression newProgression = new Progression();
+                  newProgression.setAppUser(user);
+                  newProgression.setResource(resource);
+                  return newProgression;
+                });
+
+    if (progression.isSetAside()) {
+      throw new BadRequestException("Resource is already set aside");
+    }
+
+    progression.setSetAside(true);
+
+    progressionRepository.save(progression);
+  }
+
+  @Override
+  @Transactional
+  public void unsetAsideResource(UUID userId, UUID resourceId) {
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseThrow(() -> new NotFoundException("Progression not found"));
+
+    if (!progression.isSetAside()) {
+      throw new BadRequestException("Resource is not set aside");
+    }
+
+    progression.setSetAside(false);
+
+    if (!progression.isFavorite() && !progression.isSetAside() && !progression.isExploited()) {
+      progressionRepository.delete(progression);
+    } else {
+      progressionRepository.save(progression);
+    }
+  }
+
+  @Override
+  @Transactional
+  public void markResourceAsExploited(UUID userId, UUID resourceId) {
+    final AppUser user =
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseGet(
+                () -> {
+                  final Progression newProgression = new Progression();
+                  newProgression.setAppUser(user);
+                  newProgression.setResource(resource);
+                  return newProgression;
+                });
+
+    if (progression.isExploited()) {
+      throw new BadRequestException("Resource has been already exploited");
+    }
+
+    progression.setExploited(true);
+    progression.setSetAside(false);
+
+    progressionRepository.save(progression);
+  }
+
+  @Override
+  @Transactional
+  public void markResourceAsUnexploited(UUID userId, UUID resourceId) {
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseThrow(() -> new NotFoundException("Progression not found"));
+
+    if (!progression.isExploited()) {
+      throw new BadRequestException("Resource is not exploited");
+    }
+
+    progression.setExploited(false);
+
+    if (!progression.isFavorite() && !progression.isSetAside() && !progression.isExploited()) {
+      progressionRepository.delete(progression);
+    } else {
+      progressionRepository.save(progression);
+    }
+  }
+
+  @Override
+  @Transactional
+  public ProgressionDto getProgression(UUID userId) {
+    final AppUser user =
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+
+    final ProgressionDto progressionDto = new ProgressionDto();
+    progressionDto.setFavoritesCount(
+        progressionRepository.countByAppUserAppUserIdAndFavoriteTrue(userId));
+    progressionDto.setExploitedCount(
+        progressionRepository.countByAppUserAppUserIdAndExploitedTrue(userId));
+    progressionDto.setSetAsideCount(
+        progressionRepository.countByAppUserAppUserIdAndSetAsideTrue(userId));
+
+    return progressionDto;
   }
 
   private void validateStatusTransition(ResourceStatus current, ResourceStatus next) {
