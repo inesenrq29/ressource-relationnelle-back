@@ -58,26 +58,40 @@ public class SecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http.csrf(AbstractHttpConfigurer::disable)
-        .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+    http.csrf(
+            AbstractHttpConfigurer
+                ::disable) // désactive la protection CSRF (inutile avec JWT car pas de cookies)
+        .sessionManagement(
+            sm ->
+                sm.sessionCreationPolicy(
+                    SessionCreationPolicy
+                        .STATELESS)) // API stateless : aucune session n'est stockée côté serveur,
+        // tout est dans le JWT
         .authorizeHttpRequests(
             auth ->
                 auth.requestMatchers("/api/auth/**")
-                    .permitAll()
+                    .permitAll() // autorise toutes les routes d'auth
                     .requestMatchers(
                         HttpMethod.POST, "/api/password/reset-request", "/api/password/reset")
-                    .permitAll()
+                    .permitAll() // autorise les routes de reset de mot de passe
                     .anyRequest()
-                    .authenticated())
+                    .authenticated()) // toutes les autres requêtes nécessitent une authentification
         .oauth2ResourceServer(
             oauth2 ->
-                oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
-    return http.build();
+                oauth2.jwt(
+                    jwt ->
+                        jwt.jwtAuthenticationConverter(
+                            jwtAuthenticationConverter()))); // vérifie le JWT et transforme le rôle
+    // pour Spring Security
+    return http.build(); // construit et retourne la configuration de sécurité
   }
 
   @Bean
   public JwtDecoder jwtDecoder(@Value("${security.jwt.secret}") String secret) {
-    final SecretKeySpec key = new SecretKeySpec(secret.getBytes(), "HmacSHA256");
-    return NimbusJwtDecoder.withSecretKey(key).build();
+    final SecretKeySpec key =
+        new SecretKeySpec(
+            secret.getBytes(),
+            "HmacSHA256"); // crée une clé secrète à partir de la valeur dans yaml
+    return NimbusJwtDecoder.withSecretKey(key).build(); // décode les JWT signés avec HMAC SHA256
   }
 }
