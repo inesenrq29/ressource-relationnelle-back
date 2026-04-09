@@ -23,8 +23,6 @@ public class ResourceFilterDto {
 
   private Boolean resourceIsActive;
 
-  private Boolean resourceIsUsed;
-
   private ResourceStatus status;
 
   private UUID categoryId;

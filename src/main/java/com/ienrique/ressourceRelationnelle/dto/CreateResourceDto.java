@@ -29,8 +29,6 @@ public class CreateResourceDto {
 
   @NotNull private ResourceStatus status;
 
-  private boolean resourceIsUsed;
-
   @NotNull private UUID categoryId;
 
   private List<@NotBlank @Size(max = 140) String> tags;

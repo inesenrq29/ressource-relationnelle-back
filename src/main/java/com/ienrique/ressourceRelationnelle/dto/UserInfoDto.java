@@ -1,9 +1,6 @@
 package com.ienrique.ressourceRelationnelle.dto;
 
-import java.util.List;
 import java.util.UUID;
-
-import com.ienrique.ressourceRelationnelle.entity.ResourceType;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,18 +14,10 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class UpdateResourceDto {
+public class UserInfoDto {
+  @NotNull private UUID appUserId;
 
   @NotBlank
-  @Size(max = 255)
-  private String resourceTitle;
-
-  @Size(max = 5000)
-  private String resourceDescription;
-
-  @NotNull private UUID categoryId;
-
-  private List<@NotBlank @Size(max = 140) String> tags;
-
-  @NotNull private ResourceType resourceType;
+  @Size(max = 100)
+  private String pseudo;
 }

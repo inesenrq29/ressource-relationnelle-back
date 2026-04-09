@@ -22,7 +22,6 @@ public interface ResourceService {
 
   void updateResourceStatus(UUID resourceId, UpdateResourceStatusDto status);
 
-  // TODO: faire shareResource
   List<ResourceDto> sortResources(boolean isAscending);
 
   List<ResourceDto> filterResources(String rsqlQuery);
@@ -40,4 +39,8 @@ public interface ResourceService {
   void markResourceAsUnexploited(UUID userId, UUID resourceId);
 
   ProgressionDto getProgression(UUID userId);
+
+  void shareResource(UUID resourceId, UUID friendId, ShareResourceRequestDto request);
+
+  SharedResourceDto getSharedResource(UUID sharedResourceId);
 }

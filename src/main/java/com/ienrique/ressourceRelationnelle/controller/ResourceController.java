@@ -130,4 +130,20 @@ public class ResourceController {
       @RequestParam(defaultValue = "false") final boolean isAscending) {
     return ResponseEntity.ok(resourceService.sortResources(isAscending));
   }
+
+  @PostMapping("/{resourceId}/share/{friendId}")
+  public ResponseEntity<Void> shareResource(
+      @PathVariable final UUID resourceId,
+      @PathVariable final UUID friendId,
+      @RequestBody @Valid final ShareResourceRequestDto request) {
+
+    resourceService.shareResource(resourceId, friendId, request);
+    return ResponseEntity.status(HttpStatus.CREATED).build();
+  }
+
+  @GetMapping("/shares/{sharedResourceId}")
+  public ResponseEntity<SharedResourceDto> getSharedResource(
+      @PathVariable final UUID sharedResourceId) {
+    return ResponseEntity.ok(resourceService.getSharedResource(sharedResourceId));
+  }
 }

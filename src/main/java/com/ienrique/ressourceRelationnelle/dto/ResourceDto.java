@@ -25,8 +25,6 @@ public class ResourceDto {
 
   private boolean resourceIsActive;
 
-  private boolean resourceIsUsed;
-
   @NotBlank
   @Size(max = 255)
   private String resourceTitle;

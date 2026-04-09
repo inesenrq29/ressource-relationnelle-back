@@ -136,7 +136,6 @@ public class ResourceServiceTest {
       createResource.setCategoryId(categoryId);
       createResource.setResourceTitle("resource title");
       createResource.setResourceDescription("resource description");
-      createResource.setResourceIsUsed(true);
       createResource.setTags(List.of("tag1", "tag2"));
 
       final Category category = new Category();
@@ -369,7 +368,6 @@ public class ResourceServiceTest {
       updateResourceDto.setCategoryId(categoryId);
       updateResourceDto.setResourceDescription("description updated");
       updateResourceDto.setResourceTitle("title updated");
-      updateResourceDto.setResourceIsUsed(true);
       updateResourceDto.setTags(List.of("tag1", "tag2"));
 
       when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));

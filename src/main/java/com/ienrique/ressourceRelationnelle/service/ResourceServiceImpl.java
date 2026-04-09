@@ -1,5 +1,6 @@
 package com.ienrique.ressourceRelationnelle.service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -15,6 +16,7 @@ import com.ienrique.ressourceRelationnelle.entity.*;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
 import com.ienrique.ressourceRelationnelle.mapper.ResourceMapper;
+import com.ienrique.ressourceRelationnelle.mapper.ShareResourceMapper;
 import com.ienrique.ressourceRelationnelle.repository.*;
 
 import io.github.perplexhub.rsql.RSQLJPASupport;
@@ -25,11 +27,15 @@ import lombok.RequiredArgsConstructor;
 public class ResourceServiceImpl implements ResourceService {
 
   private final ResourceRepository resourceRepository;
+  private final ShareResourceRepository shareResourceRepository;
+  private final FriendRepository friendRepository;
   private final AppUserRepository userRepository;
   private final ProgressionRepository progressionRepository;
   private final CategoryRepository categoryRepository;
   private final TagRepository tagRepository;
   private final ResourceMapper resourceMapper;
+  private final ShareResourceMapper shareResourceMapper;
+  private final UserService userService;
 
   @Override
   public ResourceDto getResourceById(UUID resourceId) {
@@ -381,6 +387,77 @@ public class ResourceServiceImpl implements ResourceService {
         progressionRepository.countByAppUserAppUserIdAndSetAsideTrue(userId));
 
     return progressionDto;
+  }
+
+  @Override
+  @Transactional
+  public void shareResource(UUID resourceId, UUID friendId, ShareResourceRequestDto request) {
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final Friend friend =
+        friendRepository
+            .findById(friendId)
+            .orElseThrow(() -> new NotFoundException("Friend not found"));
+
+    final UserDto currentUser = userService.getCurrentUser();
+
+    final AppUser sender =
+        userRepository
+            .findById(currentUser.getAppUserId())
+            .orElseThrow(() -> new NotFoundException("Current user not found"));
+
+    final AppUser receiver;
+
+    if (friend
+        .getRequesterUser()
+        .getAppUserId()
+        .equals(
+            currentUser.getAppUserId())) { // connected user = request -> receiver = receiver friend
+      receiver = friend.getReceiverUser();
+    } else if (friend
+        .getReceiverUser()
+        .getAppUserId()
+        .equals(
+            currentUser
+                .getAppUserId())) { // connected user = receiver -> receiver = requester firend
+      receiver = friend.getRequesterUser();
+    } else {
+      throw new BadRequestException("You can't share if you aren't friends");
+    }
+
+    // vérifier que la ressource n'a pas déjà été partagée
+
+    final ShareResource share = new ShareResource();
+    share.setResource(resource);
+    share.setSender(sender);
+    share.setReceiver(receiver);
+    share.setMessage(request.getMessage());
+    share.setSharedAt(Instant.now());
+
+    shareResourceRepository.save(share);
+  }
+
+  @Override
+  public SharedResourceDto getSharedResource(UUID sharedResourceId) {
+    final ShareResource resource =
+        shareResourceRepository
+            .findById(sharedResourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final UserDto currentUser = userService.getCurrentUser();
+    final UUID currentUserId = currentUser.getAppUserId();
+
+    final boolean isSender = resource.getSender().getAppUserId().equals(currentUserId);
+    final boolean isReceiver = resource.getReceiver().getAppUserId().equals(currentUserId);
+
+    if (!isSender && !isReceiver) {
+      throw new BadRequestException("You are not allowed to access this shared resource");
+    }
+
+    return shareResourceMapper.toDto(resource);
   }
 
   private void validateStatusTransition(ResourceStatus current, ResourceStatus next) {

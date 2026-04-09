@@ -145,7 +145,6 @@ public class ResourceControllerTest {
       final CreateResourceDto request = new CreateResourceDto();
       request.setResourceTitle("New resource");
       request.setResourceDescription("Description");
-      request.setResourceIsUsed(true);
       request.setStatus(ResourceStatus.DRAFT);
       request.setResourceType(ResourceType.VIDEO);
       request.setCategoryId(UUID.randomUUID());
@@ -181,7 +180,6 @@ public class ResourceControllerTest {
       final UpdateResourceDto request = new UpdateResourceDto();
       request.setResourceTitle("Updated title");
       request.setResourceDescription("Updated description");
-      request.setResourceIsUsed(true);
       request.setResourceType(ResourceType.GAME);
       request.setCategoryId(UUID.randomUUID());
       request.setTags(List.of("tag1", "tag2"));
