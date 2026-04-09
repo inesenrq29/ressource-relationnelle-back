@@ -25,8 +25,10 @@ import com.ienrique.ressourceRelationnelle.entity.*;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
 import com.ienrique.ressourceRelationnelle.mapper.ResourceMapper;
+import com.ienrique.ressourceRelationnelle.mapper.ShareResourceMapper;
 import com.ienrique.ressourceRelationnelle.repository.*;
 import com.ienrique.ressourceRelationnelle.service.ResourceServiceImpl;
+import com.ienrique.ressourceRelationnelle.service.UserService;
 
 import io.github.perplexhub.rsql.RSQLJPASupport;
 
@@ -37,8 +39,12 @@ public class ResourceServiceTest {
   @Mock private CategoryRepository categoryRepository;
   @Mock private AppUserRepository userRepository;
   @Mock private ProgressionRepository progressionRepository;
+  @Mock private ShareResourceRepository shareResourceRepository;
+  @Mock private FriendRepository friendRepository;
   @Mock private TagRepository tagRepository;
   @Mock private ResourceMapper resourceMapper;
+  @Mock private ShareResourceMapper shareResourceMapper;
+  @Mock private UserService userService;
 
   @InjectMocks private ResourceServiceImpl resourceService;
 
@@ -1113,6 +1119,273 @@ public class ResourceServiceTest {
       assertEquals(resourceDtos, result);
       verify(resourceRepository).findAll(Sort.by("resourceCreatedAt").descending());
       verify(resourceMapper).toDtos(resources);
+    }
+  }
+
+  @Nested
+  @DisplayName("share resource")
+  class ShareResourceTest {
+
+    @Test
+    @DisplayName("should share resource when current user is request")
+    void shouldShareResourceWhenCurrentUserIsRequester() {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+      final UUID friendUserId = UUID.randomUUID();
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+
+      final AppUser sender = new AppUser();
+      sender.setAppUserId(currentUserId);
+
+      final AppUser receiver = new AppUser();
+      receiver.setAppUserId(friendUserId);
+
+      final Friend friend = new Friend();
+      friend.setRequesterUser(sender);
+      friend.setReceiverUser(receiver);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      final ShareResourceRequestDto request = new ShareResourceRequestDto();
+      request.setMessage("hello");
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(friendRepository.findById(friendId)).thenReturn(Optional.of(friend));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(userRepository.findById(currentUserId)).thenReturn(Optional.of(sender));
+
+      resourceService.shareResource(resourceId, friendId, request);
+
+      verify(shareResourceRepository).save(any(ShareResource.class));
+    }
+
+    @Test
+    @DisplayName("should throw resource not found")
+    void shouldThrowWhenResourceNotFound() {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+
+      final ShareResourceRequestDto request = new ShareResourceRequestDto();
+      request.setMessage("hello");
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class,
+          () -> resourceService.shareResource(resourceId, friendId, request));
+
+      verify(shareResourceRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should throw friend not found")
+    void shouldThrowWhenFriendNotFound() {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+
+      final ShareResourceRequestDto request = new ShareResourceRequestDto();
+      request.setMessage("hello");
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(friendRepository.findById(friendId)).thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class,
+          () -> resourceService.shareResource(resourceId, friendId, request));
+
+      verify(shareResourceRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should throw bad request when user is not in friendship")
+    void shouldThrowWhenUserNotInFriendship() {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+
+      final AppUser requester = new AppUser();
+      requester.setAppUserId(UUID.randomUUID());
+
+      final AppUser receiver = new AppUser();
+      receiver.setAppUserId(UUID.randomUUID());
+
+      final Friend friend = new Friend();
+      friend.setRequesterUser(requester);
+      friend.setReceiverUser(receiver);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      final AppUser sender = new AppUser();
+      sender.setAppUserId(currentUserId);
+
+      final ShareResourceRequestDto request = new ShareResourceRequestDto();
+      request.setMessage("hello");
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(friendRepository.findById(friendId)).thenReturn(Optional.of(friend));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(userRepository.findById(currentUserId)).thenReturn(Optional.of(sender));
+
+      assertThrows(
+          BadRequestException.class,
+          () -> resourceService.shareResource(resourceId, friendId, request));
+
+      verify(shareResourceRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should throw current user not found")
+    void shouldThrowWhenCurrentUserNotFound() {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+
+      final AppUser receiver = new AppUser();
+      receiver.setAppUserId(UUID.randomUUID());
+
+      final AppUser sender = new AppUser();
+      sender.setAppUserId(currentUserId);
+
+      final Friend friend = new Friend();
+      friend.setRequesterUser(sender);
+      friend.setReceiverUser(receiver);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      final ShareResourceRequestDto request = new ShareResourceRequestDto();
+      request.setMessage("hello");
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(friendRepository.findById(friendId)).thenReturn(Optional.of(friend));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(userRepository.findById(currentUserId)).thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class,
+          () -> resourceService.shareResource(resourceId, friendId, request));
+
+      verify(shareResourceRepository, never()).save(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("get shared resource")
+  class GetSharedResource {
+
+    @Test
+    @DisplayName("should return shared resource when user is sender")
+    void shouldReturnSharedResourceWhenUserIsSender() {
+      final UUID shareId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final AppUser sender = new AppUser();
+      sender.setAppUserId(userId);
+
+      final AppUser receiver = new AppUser();
+      receiver.setAppUserId(UUID.randomUUID());
+
+      final ShareResource share = new ShareResource();
+      share.setShareResourceId(shareId);
+      share.setSender(sender);
+      share.setReceiver(receiver);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final SharedResourceDto dto = new SharedResourceDto();
+
+      when(shareResourceRepository.findById(shareId)).thenReturn(Optional.of(share));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(shareResourceMapper.toDto(share)).thenReturn(dto);
+
+      final SharedResourceDto result = resourceService.getSharedResource(shareId);
+
+      assertEquals(dto, result);
+      verify(shareResourceMapper).toDto(share);
+    }
+
+    @Test
+    @DisplayName("should return shared resource when user is receiver")
+    void shouldReturnSharedResourceWhenUserIsReceiver() {
+      final UUID shareId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final AppUser sender = new AppUser();
+      sender.setAppUserId(UUID.randomUUID());
+
+      final AppUser receiver = new AppUser();
+      receiver.setAppUserId(userId);
+
+      final ShareResource share = new ShareResource();
+      share.setSender(sender);
+      share.setReceiver(receiver);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final SharedResourceDto dto = new SharedResourceDto();
+
+      when(shareResourceRepository.findById(shareId)).thenReturn(Optional.of(share));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(shareResourceMapper.toDto(share)).thenReturn(dto);
+
+      final SharedResourceDto result = resourceService.getSharedResource(shareId);
+
+      assertEquals(dto, result);
+      verify(shareResourceMapper).toDto(share);
+    }
+
+    @Test
+    @DisplayName("should throw share resource not found")
+    void shouldThrowNotFoundExceptionWhenShareNotFound() {
+      final UUID shareId = UUID.randomUUID();
+
+      when(shareResourceRepository.findById(shareId)).thenReturn(Optional.empty());
+
+      assertThrows(NotFoundException.class, () -> resourceService.getSharedResource(shareId));
+
+      verify(shareResourceMapper, never()).toDto(any());
+    }
+
+    @Test
+    @DisplayName("should throw bad request when user is not sender and not receiver")
+    void shouldThrowBadRequestWhenUserNotSenderNorReceiver() {
+      final UUID shareId = UUID.randomUUID();
+
+      final AppUser sender = new AppUser();
+      sender.setAppUserId(UUID.randomUUID());
+
+      final AppUser receiver = new AppUser();
+      receiver.setAppUserId(UUID.randomUUID());
+
+      final ShareResource share = new ShareResource();
+      share.setSender(sender);
+      share.setReceiver(receiver);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(UUID.randomUUID());
+
+      when(shareResourceRepository.findById(shareId)).thenReturn(Optional.of(share));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+
+      assertThrows(BadRequestException.class, () -> resourceService.getSharedResource(shareId));
+
+      verify(shareResourceMapper, never()).toDto(any());
     }
   }
 }

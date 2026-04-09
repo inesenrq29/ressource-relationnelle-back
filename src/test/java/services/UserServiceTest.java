@@ -14,15 +14,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.ienrique.ressourceRelationnelle.dto.CreateAccountDto;
 import com.ienrique.ressourceRelationnelle.dto.DeleteAccountDto;
@@ -48,6 +50,9 @@ public class UserServiceTest {
   @Mock private UserMapper userMapper;
   @Mock private RoleMapper roleMapper;
   @Mock private PasswordEncoder passwordEncoder;
+  @Mock private SecurityContext securityContext;
+  @Mock private Authentication authentication;
+  @Mock private Jwt jwt;
 
   @InjectMocks private UserServiceImpl userService;
 
@@ -377,6 +382,54 @@ public class UserServiceTest {
               BadRequestException.class, () -> userService.createAccountWithRole(createAccountDto));
 
       assertEquals("Role is required", exception.getMessage());
+    }
+  }
+
+  @Nested
+  @DisplayName("get current user")
+  class GetCurrentUser {
+
+    @BeforeEach
+    void setUp() {
+      SecurityContextHolder.setContext(securityContext);
+    }
+
+    @AfterEach
+    void tearDown() {
+      SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    @DisplayName("should get current user")
+    void shouldGetCurrentUser() {
+      final String email = "test@mail.com";
+      final AppUser user = new AppUser();
+      final UserDto userDto = new UserDto();
+
+      when(securityContext.getAuthentication()).thenReturn(authentication);
+      when(authentication.getPrincipal()).thenReturn(jwt);
+      when(jwt.getSubject()).thenReturn(email);
+      when(userRepository.findByMail(email)).thenReturn(Optional.of(user));
+      when(userMapper.toDto(user)).thenReturn(userDto);
+
+      final UserDto result = userService.getCurrentUser();
+
+      assertEquals(userDto, result);
+    }
+
+    @Test
+    void shouldThrowNotFoundExceptionWhenUserDoesNotExist() {
+      final String email = "unknown@mail.com";
+
+      when(securityContext.getAuthentication()).thenReturn(authentication);
+      when(authentication.getPrincipal()).thenReturn(jwt);
+      when(jwt.getSubject()).thenReturn(email);
+      when(userRepository.findByMail(email)).thenReturn(Optional.empty());
+
+      final NotFoundException exception =
+          assertThrows(NotFoundException.class, () -> userService.getCurrentUser());
+
+      assertEquals("User not found", exception.getMessage());
     }
   }
 }

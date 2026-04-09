@@ -2,10 +2,7 @@ package controllers;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -533,6 +530,50 @@ public class ResourceControllerTest {
           .andExpect(status().isOk());
 
       verify(resourceService).sortResources(false);
+    }
+  }
+
+  @Nested
+  @DisplayName("share resource")
+  class ShareResourceTest {
+
+    @Test
+    @DisplayName("should share resource")
+    void shouldShareResource() throws Exception {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+      final ShareResourceRequestDto request = new ShareResourceRequestDto();
+
+      mockMvc
+          .perform(
+              post("/api/resources/{resourceId}/share/{friendId}", resourceId, friendId)
+                  .with(jwt())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(request)))
+          .andExpect(status().isCreated());
+
+      verify(resourceService)
+          .shareResource(eq(resourceId), eq(friendId), any(ShareResourceRequestDto.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("get shared resource")
+  class GetSharedResource {
+
+    @Test
+    @DisplayName("should get shared resource")
+    void shouldGetSharedResource() throws Exception {
+      final UUID sharedResourceId = UUID.randomUUID();
+      final SharedResourceDto resourceDto = new SharedResourceDto();
+
+      when(resourceService.getSharedResource(sharedResourceId)).thenReturn(resourceDto);
+
+      mockMvc
+          .perform(get("/api/resources/shares/{sharedResourceId}", sharedResourceId).with(jwt()))
+          .andExpect(status().isOk());
+
+      verify(resourceService).getSharedResource(eq(sharedResourceId));
     }
   }
 }
