@@ -23,3 +23,7 @@ databaseChangeLog:
       file: db/changelog/011_create_progression_table.sql
   - include:
       file: db/changelog/012_create_share_resource_table.sql
+  - include:
+      file: db/changelog/013_create_many_resource.sql
+  - include:
+      file: db/changelog/014_update_quiz_table.sql
