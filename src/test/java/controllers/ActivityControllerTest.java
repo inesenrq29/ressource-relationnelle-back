@@ -9,6 +9,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -33,82 +35,99 @@ public class ActivityControllerTest {
 
   @MockitoBean private ActivityService activityService;
 
-  @Test
-  void shouldCheckQuizAnswer() throws Exception {
-    final CheckQuizAnswerDto answerDto = new CheckQuizAnswerDto();
-    answerDto.setQuizQuestionId(UUID.randomUUID());
-    answerDto.setUserAnswer(true);
+  @Nested
+  @DisplayName("check quiz answer")
+  class CheckQuizAnswer {
+    @Test
+    void shouldCheckQuizAnswer() throws Exception {
+      final CheckQuizAnswerDto answerDto = new CheckQuizAnswerDto();
+      answerDto.setQuizQuestionId(UUID.randomUUID());
+      answerDto.setUserAnswer(true);
 
-    final CheckQuizAnswerResponseDto response = new CheckQuizAnswerResponseDto();
-    response.setCorrect(true);
+      final CheckQuizAnswerResponseDto response = new CheckQuizAnswerResponseDto();
+      response.setCorrect(true);
 
-    when(activityService.checkQuizAnswer(answerDto)).thenReturn(response);
+      when(activityService.checkQuizAnswer(answerDto)).thenReturn(response);
 
-    mockMvc
-        .perform(
-            post("/api/activity/quiz/check")
-                .contentType(MediaType.APPLICATION_JSON)
-                .with(jwt())
-                .content(objectMapper.writeValueAsString(answerDto)))
-        .andExpect(status().isOk());
+      mockMvc
+          .perform(
+              post("/api/activity/quiz/check")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(jwt())
+                  .content(objectMapper.writeValueAsString(answerDto)))
+          .andExpect(status().isOk());
+    }
   }
 
-  @Test
-  void shouldStartActivity() throws Exception {
-    final UUID resourceId = UUID.randomUUID();
-    final ActivityResponseDto response = new ActivityResponseDto();
-    response.setActivityType(ActivityType.QUIZ);
+  @Nested
+  @DisplayName("start activity")
+  class StartActivity {
+    @Test
+    void shouldStartActivity() throws Exception {
+      final UUID resourceId = UUID.randomUUID();
+      final ActivityResponseDto response = new ActivityResponseDto();
+      response.setActivityType(ActivityType.QUIZ);
 
-    when(activityService.startActivity(resourceId)).thenReturn(response);
+      when(activityService.startActivity(resourceId)).thenReturn(response);
 
-    mockMvc
-        .perform(
-            post("/api/activity/start/{resourceId}", resourceId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(response))
-                .with(jwt()))
-        .andExpect(status().isOk());
+      mockMvc
+          .perform(
+              post("/api/activity/start/{resourceId}", resourceId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(response))
+                  .with(jwt()))
+          .andExpect(status().isOk());
+    }
   }
 
-  @Test
-  void shouldCreateQuiz() throws Exception {
-    final CreateQuizDto createQuizDto = new CreateQuizDto();
+  @Nested
+  @DisplayName("create quiz")
+  class CreateQuiz {
+    @Test
+    void shouldCreateQuiz() throws Exception {
+      final CreateQuizDto createQuizDto = new CreateQuizDto();
 
-    final QuizDto response = new QuizDto();
+      final QuizDto response = new QuizDto();
 
-    when(activityService.createQuiz(createQuizDto)).thenReturn(response);
+      when(activityService.createQuiz(createQuizDto)).thenReturn(response);
 
-    mockMvc
-        .perform(
-            post("/api/activity/quiz")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(response))
-                .with(jwt()))
-        .andExpect(status().isCreated());
+      mockMvc
+          .perform(
+              post("/api/activity/quiz")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(response))
+                  .with(jwt()))
+          .andExpect(status().isCreated());
+    }
   }
 
-  @Test
-  void shouldCreatePoll() throws Exception {
-    final UUID resourceId = UUID.randomUUID();
-    final CreatePollDto createPollDto = new CreatePollDto();
-    createPollDto.setResourceId(resourceId);
-    createPollDto.setQuestion("Quelle option préférez-vous ?");
-    createPollDto.setOptions(List.of("Option 1", "Option 2"));
+  @Nested
+  @DisplayName("create poll")
+  class CreatePoll {
+    @Test
+    @DisplayName("should create poll")
+    void shouldCreatePoll() throws Exception {
+      final UUID resourceId = UUID.randomUUID();
+      final CreatePollDto createPollDto = new CreatePollDto();
+      createPollDto.setResourceId(resourceId);
+      createPollDto.setQuestion("Quelle option préférez-vous ?");
+      createPollDto.setOptions(List.of("Option 1", "Option 2"));
 
-    final PollDto response = new PollDto();
-    response.setPollId(UUID.randomUUID());
-    response.setResourceId(resourceId);
-    response.setQuestion("Quelle option préférez-vous ?");
-    response.setCreatedAt(Instant.now());
+      final PollDto response = new PollDto();
+      response.setPollId(UUID.randomUUID());
+      response.setResourceId(resourceId);
+      response.setQuestion("Quelle option préférez-vous ?");
+      response.setCreatedAt(Instant.now());
 
-    when(activityService.createPoll(createPollDto)).thenReturn(response);
+      when(activityService.createPoll(createPollDto)).thenReturn(response);
 
-    mockMvc
-        .perform(
-            post("/api/activity/poll")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(createPollDto))
-                .with(jwt()))
-        .andExpect(status().isCreated());
+      mockMvc
+          .perform(
+              post("/api/activity/poll")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(createPollDto))
+                  .with(jwt()))
+          .andExpect(status().isCreated());
+    }
   }
 }
