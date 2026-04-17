@@ -22,10 +22,14 @@ public class ActivitySession {
   @JoinColumn(name = "interactiveResourceId", nullable = false)
   private InteractiveResource interactiveResource;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "appUserId", nullable = false)
-  private AppUser appUser;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "status", nullable = false)
+  private ActivitySessionStatus status;
 
   @Column(name = "startedAt", nullable = false)
   private Instant startedAt;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "createdById", nullable = false)
+  private AppUser createdBy;
 }

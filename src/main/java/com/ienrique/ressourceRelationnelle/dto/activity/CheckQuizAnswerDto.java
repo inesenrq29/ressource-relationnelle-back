@@ -10,6 +10,8 @@ import lombok.Setter;
 @Getter
 public class CheckQuizAnswerDto {
 
+  @NotNull private UUID activitySessionId;
+
   @NotNull private UUID quizQuestionId;
 
   @NotNull private Boolean userAnswer;

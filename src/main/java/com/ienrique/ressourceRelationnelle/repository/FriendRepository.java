@@ -18,4 +18,7 @@ public interface FriendRepository extends JpaRepository<Friend, UUID> {
 
   Optional<Friend> findByRequesterUserAppUserIdAndReceiverUserAppUserId(
       UUID requesterUserId, UUID receiverUserId);
+
+  boolean existsByRequesterUserAppUserIdAndReceiverUserAppUserId(
+      UUID requesterUserId, UUID receiverUserId);
 }

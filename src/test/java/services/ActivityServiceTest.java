@@ -2,7 +2,7 @@ package services;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.time.Instant;
 import java.util.List;
@@ -13,10 +13,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.ienrique.ressourceRelationnelle.dto.ActivityMessageDto;
+import com.ienrique.ressourceRelationnelle.dto.AnswerPollDto;
+import com.ienrique.ressourceRelationnelle.dto.SendMessageDto;
 import com.ienrique.ressourceRelationnelle.dto.UserDto;
 import com.ienrique.ressourceRelationnelle.dto.activity.*;
 import com.ienrique.ressourceRelationnelle.entity.*;
@@ -36,6 +40,13 @@ public class ActivityServiceTest {
   @Mock private InteractiveResourceRepository interactiveResourceRepository;
   @Mock private ResourceRepository resourceRepository;
   @Mock private ActivitySessionRepository activitySessionRepository;
+  @Mock private ActivityMessageRepository activityMessageRepository;
+  @Mock private ActivityParticipantRepository activityParticipantRepository;
+  @Mock private QuizQuestionRepository quizQuestionRepository;
+  @Mock private QuizParticipantAnswerRepository quizParticipantAnswerRepository;
+  @Mock private PollOptionRepository pollOptionRepository;
+  @Mock private PollParticipantAnswerRepository pollParticipantAnswerRepository;
+  @Mock private FriendRepository friendRepository;
   @Mock private PollRepository pollRepository;
   @Mock private QuizMapper quizMapper;
   @Mock private PollMapper pollMapper;
@@ -46,12 +57,14 @@ public class ActivityServiceTest {
   @Nested
   @DisplayName("start activity")
   class StartActivity {
+
     @Test
     @DisplayName("Should start quiz activity successfully")
     void shouldStartQuizActivity() {
       final UUID resourceId = UUID.randomUUID();
       final UUID interactiveResourceId = UUID.randomUUID();
       final UUID userId = UUID.randomUUID();
+      final UUID activitySessionId = UUID.randomUUID();
 
       final Resource resource = new Resource();
       resource.setResourceId(resourceId);
@@ -73,11 +86,12 @@ public class ActivityServiceTest {
       quiz.setInteractiveResource(interactiveResource);
       quiz.setQuestions(List.of());
 
-      final StartQuizDto startQuizDto = new StartQuizDto();
-      startQuizDto.setQuizId(quiz.getQuizId());
-      startQuizDto.setResourceId(resourceId);
-      startQuizDto.setCreatedAt(quiz.getCreatedAt());
-      startQuizDto.setQuestions(List.of());
+      final ActivitySession savedSession = new ActivitySession();
+      savedSession.setActivitySessionId(activitySessionId);
+      savedSession.setInteractiveResource(interactiveResource);
+      savedSession.setCreatedBy(user);
+      savedSession.setStartedAt(Instant.now());
+      savedSession.setStatus(ActivitySessionStatus.ACTIVE);
 
       when(interactiveResourceRepository.findByResourceResourceId(resourceId))
           .thenReturn(Optional.of(interactiveResource));
@@ -85,7 +99,9 @@ public class ActivityServiceTest {
       when(userService.getCurrentUser()).thenReturn(currentUser);
       when(appUserRepository.findById(userId)).thenReturn(Optional.of(user));
 
-      when(activitySessionRepository.save(any(ActivitySession.class)))
+      when(activitySessionRepository.save(any(ActivitySession.class))).thenReturn(savedSession);
+
+      when(activityParticipantRepository.save(any(ActivityParticipant.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       when(quizRepository.findByInteractiveResourceInteractiveResourceId(interactiveResourceId))
@@ -93,9 +109,16 @@ public class ActivityServiceTest {
 
       final ActivityResponseDto result = activityService.startActivity(resourceId);
 
+      assertNotNull(result);
+      assertEquals(activitySessionId, result.getActivitySessionId());
       assertEquals(ActivityType.QUIZ, result.getActivityType());
       assertNotNull(result.getQuiz());
       assertNull(result.getPoll());
+
+      verify(activitySessionRepository).save(any(ActivitySession.class));
+      verify(activityParticipantRepository).save(any(ActivityParticipant.class));
+      verify(quizRepository).findByInteractiveResourceInteractiveResourceId(interactiveResourceId);
+      verifyNoInteractions(pollRepository);
     }
 
     @Test
@@ -104,6 +127,7 @@ public class ActivityServiceTest {
       final UUID resourceId = UUID.randomUUID();
       final UUID interactiveResourceId = UUID.randomUUID();
       final UUID userId = UUID.randomUUID();
+      final UUID activitySessionId = UUID.randomUUID();
 
       final Resource resource = new Resource();
       resource.setResourceId(resourceId);
@@ -133,13 +157,22 @@ public class ActivityServiceTest {
       pollDto.setCreatedAt(poll.getCreatedAt());
       pollDto.setOptions(List.of());
 
+      final ActivitySession savedSession = new ActivitySession();
+      savedSession.setActivitySessionId(activitySessionId);
+      savedSession.setInteractiveResource(interactiveResource);
+      savedSession.setCreatedBy(user);
+      savedSession.setStartedAt(Instant.now());
+      savedSession.setStatus(ActivitySessionStatus.ACTIVE);
+
       when(interactiveResourceRepository.findByResourceResourceId(resourceId))
           .thenReturn(Optional.of(interactiveResource));
 
       when(userService.getCurrentUser()).thenReturn(currentUser);
       when(appUserRepository.findById(userId)).thenReturn(Optional.of(user));
 
-      when(activitySessionRepository.save(any(ActivitySession.class)))
+      when(activitySessionRepository.save(any(ActivitySession.class))).thenReturn(savedSession);
+
+      when(activityParticipantRepository.save(any(ActivityParticipant.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       when(pollRepository.findByInteractiveResourceInteractiveResourceId(interactiveResourceId))
@@ -149,17 +182,26 @@ public class ActivityServiceTest {
 
       final ActivityResponseDto result = activityService.startActivity(resourceId);
 
+      assertNotNull(result);
+      assertEquals(activitySessionId, result.getActivitySessionId());
       assertEquals(ActivityType.POLL, result.getActivityType());
       assertNotNull(result.getPoll());
       assertEquals(pollDto, result.getPoll());
       assertNull(result.getQuiz());
+
+      verify(activitySessionRepository).save(any(ActivitySession.class));
+      verify(activityParticipantRepository).save(any(ActivityParticipant.class));
+      verify(pollRepository).findByInteractiveResourceInteractiveResourceId(interactiveResourceId);
+      verifyNoInteractions(quizRepository);
     }
 
     @Test
-    @DisplayName("Should throw activity not found")
-    void shouldThrowNotFoundActivity() {
+    @DisplayName("Should return response with null activity content when activity type is null")
+    void shouldReturnResponseWhenActivityTypeIsNull() {
       final UUID resourceId = UUID.randomUUID();
       final UUID interactiveResourceId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+      final UUID activitySessionId = UUID.randomUUID();
 
       final Resource resource = new Resource();
       resource.setResourceId(resourceId);
@@ -169,10 +211,38 @@ public class ActivityServiceTest {
       interactiveResource.setActivityType(null);
       interactiveResource.setResource(resource);
 
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivitySession savedSession = new ActivitySession();
+      savedSession.setActivitySessionId(activitySessionId);
+      savedSession.setInteractiveResource(interactiveResource);
+      savedSession.setCreatedBy(user);
+      savedSession.setStartedAt(Instant.now());
+      savedSession.setStatus(ActivitySessionStatus.ACTIVE);
+
       when(interactiveResourceRepository.findByResourceResourceId(resourceId))
           .thenReturn(Optional.of(interactiveResource));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(appUserRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(activitySessionRepository.save(any(ActivitySession.class))).thenReturn(savedSession);
+      when(activityParticipantRepository.save(any(ActivityParticipant.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
 
-      assertThrows(NotFoundException.class, () -> activityService.startActivity(resourceId));
+      final ActivityResponseDto result = activityService.startActivity(resourceId);
+
+      assertNotNull(result);
+      assertEquals(activitySessionId, result.getActivitySessionId());
+      assertNull(result.getActivityType());
+      assertNull(result.getQuiz());
+      assertNull(result.getPoll());
+
+      verify(activitySessionRepository).save(any(ActivitySession.class));
+      verify(activityParticipantRepository).save(any(ActivityParticipant.class));
+      verifyNoInteractions(quizRepository, pollRepository);
     }
 
     @Test
@@ -184,6 +254,15 @@ public class ActivityServiceTest {
           .thenReturn(Optional.empty());
 
       assertThrows(NotFoundException.class, () -> activityService.startActivity(resourceId));
+
+      verify(interactiveResourceRepository).findByResourceResourceId(resourceId);
+      verifyNoInteractions(
+          userService,
+          appUserRepository,
+          activitySessionRepository,
+          activityParticipantRepository,
+          quizRepository,
+          pollRepository);
     }
   }
 
@@ -467,96 +546,1289 @@ public class ActivityServiceTest {
   @Nested
   @DisplayName("check quiz answer")
   class CheckQuizAnswer {
+
     @Test
     @DisplayName("Should return true when quiz answer is correct")
     void shouldReturnTrueWhenQuizAnswerIsCorrect() {
+      final UUID activitySessionId = UUID.randomUUID();
       final UUID quizQuestionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
 
       final CheckQuizAnswerDto requestDto = new CheckQuizAnswerDto();
+      requestDto.setActivitySessionId(activitySessionId);
       requestDto.setQuizQuestionId(quizQuestionId);
       requestDto.setUserAnswer(true);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
 
       final QuizQuestion question = new QuizQuestion();
       question.setQuizQuestionId(quizQuestionId);
       question.setQuestion("La communication est importante ?");
       question.setCorrectAnswer(true);
 
-      final Quiz quiz = new Quiz();
-      quiz.setQuizId(UUID.randomUUID());
-      quiz.setQuestions(List.of(question));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(quizQuestionRepository.findById(quizQuestionId)).thenReturn(Optional.of(question));
+      when(quizParticipantAnswerRepository.existsByActivityParticipantAndQuizQuestion(
+              participant, question))
+          .thenReturn(false);
+      when(quizParticipantAnswerRepository.save(any(QuizParticipantAnswer.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
 
-      when(quizRepository.findByQuestionsQuizQuestionId(quizQuestionId))
-          .thenReturn(Optional.of(quiz));
+      final CheckQuizAnswerResponseDto result = activityService.answerQuizQuestion(requestDto);
 
-      final CheckQuizAnswerResponseDto result = activityService.checkQuizAnswer(requestDto);
-
+      assertNotNull(result);
       assertTrue(result.isCorrect());
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(quizQuestionRepository).findById(quizQuestionId);
+      verify(quizParticipantAnswerRepository)
+          .existsByActivityParticipantAndQuizQuestion(participant, question);
+      verify(quizParticipantAnswerRepository).save(any(QuizParticipantAnswer.class));
+      verifyNoInteractions(quizRepository);
     }
 
     @Test
     @DisplayName("Should return false when quiz answer is incorrect")
     void shouldReturnFalseWhenQuizAnswerIsIncorrect() {
+      final UUID activitySessionId = UUID.randomUUID();
       final UUID quizQuestionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
 
       final CheckQuizAnswerDto requestDto = new CheckQuizAnswerDto();
+      requestDto.setActivitySessionId(activitySessionId);
       requestDto.setQuizQuestionId(quizQuestionId);
       requestDto.setUserAnswer(false);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
 
       final QuizQuestion question = new QuizQuestion();
       question.setQuizQuestionId(quizQuestionId);
       question.setQuestion("La communication est importante ?");
       question.setCorrectAnswer(true);
 
-      final Quiz quiz = new Quiz();
-      quiz.setQuizId(UUID.randomUUID());
-      quiz.setQuestions(List.of(question));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(quizQuestionRepository.findById(quizQuestionId)).thenReturn(Optional.of(question));
+      when(quizParticipantAnswerRepository.existsByActivityParticipantAndQuizQuestion(
+              participant, question))
+          .thenReturn(false);
+      when(quizParticipantAnswerRepository.save(any(QuizParticipantAnswer.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
 
-      when(quizRepository.findByQuestionsQuizQuestionId(quizQuestionId))
-          .thenReturn(Optional.of(quiz));
+      final CheckQuizAnswerResponseDto result = activityService.answerQuizQuestion(requestDto);
 
-      final CheckQuizAnswerResponseDto result = activityService.checkQuizAnswer(requestDto);
-
+      assertNotNull(result);
       assertFalse(result.isCorrect());
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(quizQuestionRepository).findById(quizQuestionId);
+      verify(quizParticipantAnswerRepository)
+          .existsByActivityParticipantAndQuizQuestion(participant, question);
+      verify(quizParticipantAnswerRepository).save(any(QuizParticipantAnswer.class));
+      verifyNoInteractions(quizRepository);
     }
 
     @Test
-    @DisplayName("Should throw when quiz is not found for answer check")
-    void shouldThrowWhenQuizIsNotFoundForAnswerCheck() {
+    @DisplayName("Should throw when user is not participant of activity session")
+    void shouldThrowWhenUserIsNotParticipantOfActivitySession() {
+      final UUID activitySessionId = UUID.randomUUID();
       final UUID quizQuestionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
 
       final CheckQuizAnswerDto requestDto = new CheckQuizAnswerDto();
+      requestDto.setActivitySessionId(activitySessionId);
       requestDto.setQuizQuestionId(quizQuestionId);
       requestDto.setUserAnswer(true);
 
-      when(quizRepository.findByQuestionsQuizQuestionId(quizQuestionId))
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
           .thenReturn(Optional.empty());
 
-      assertThrows(NotFoundException.class, () -> activityService.checkQuizAnswer(requestDto));
+      assertThrows(NotFoundException.class, () -> activityService.answerQuizQuestion(requestDto));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verifyNoInteractions(quizQuestionRepository, quizParticipantAnswerRepository, quizRepository);
     }
 
     @Test
-    @DisplayName("Should throw when question is not found in quiz for answer check")
-    void shouldThrowWhenQuestionIsNotFoundInQuizForAnswerCheck() {
-      final UUID requestedQuestionId = UUID.randomUUID();
-      final UUID anotherQuestionId = UUID.randomUUID();
+    @DisplayName("Should throw when question is not found")
+    void shouldThrowWhenQuestionIsNotFound() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID quizQuestionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
 
       final CheckQuizAnswerDto requestDto = new CheckQuizAnswerDto();
-      requestDto.setQuizQuestionId(requestedQuestionId);
+      requestDto.setActivitySessionId(activitySessionId);
+      requestDto.setQuizQuestionId(quizQuestionId);
       requestDto.setUserAnswer(true);
 
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(quizQuestionRepository.findById(quizQuestionId)).thenReturn(Optional.empty());
+
+      assertThrows(NotFoundException.class, () -> activityService.answerQuizQuestion(requestDto));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(quizQuestionRepository).findById(quizQuestionId);
+      verifyNoInteractions(quizParticipantAnswerRepository, quizRepository);
+    }
+
+    @Test
+    @DisplayName("Should throw when question already answered")
+    void shouldThrowWhenQuestionAlreadyAnswered() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID quizQuestionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final CheckQuizAnswerDto requestDto = new CheckQuizAnswerDto();
+      requestDto.setActivitySessionId(activitySessionId);
+      requestDto.setQuizQuestionId(quizQuestionId);
+      requestDto.setUserAnswer(true);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+
       final QuizQuestion question = new QuizQuestion();
-      question.setQuizQuestionId(anotherQuestionId);
-      question.setQuestion("Question différente");
+      question.setQuizQuestionId(quizQuestionId);
+      question.setQuestion("La communication est importante ?");
       question.setCorrectAnswer(true);
 
-      final Quiz quiz = new Quiz();
-      quiz.setQuizId(UUID.randomUUID());
-      quiz.setQuestions(List.of(question));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(quizQuestionRepository.findById(quizQuestionId)).thenReturn(Optional.of(question));
+      when(quizParticipantAnswerRepository.existsByActivityParticipantAndQuizQuestion(
+              participant, question))
+          .thenReturn(true);
 
-      when(quizRepository.findByQuestionsQuizQuestionId(requestedQuestionId))
-          .thenReturn(Optional.of(quiz));
+      assertThrows(BadRequestException.class, () -> activityService.answerQuizQuestion(requestDto));
 
-      assertThrows(NotFoundException.class, () -> activityService.checkQuizAnswer(requestDto));
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(quizQuestionRepository).findById(quizQuestionId);
+      verify(quizParticipantAnswerRepository)
+          .existsByActivityParticipantAndQuizQuestion(participant, question);
+      verify(quizParticipantAnswerRepository, never()).save(any(QuizParticipantAnswer.class));
+      verifyNoInteractions(quizRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("answer poll option")
+  class AnswerPollOption {
+
+    @Test
+    @DisplayName("Should save poll answer successfully")
+    void shouldSavePollAnswerSuccessfully() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID pollOptionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final AnswerPollDto requestDto = new AnswerPollDto();
+      requestDto.setActivitySessionId(activitySessionId);
+      requestDto.setPollOptionId(pollOptionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+
+      final Poll poll = new Poll();
+      poll.setPollId(UUID.randomUUID());
+
+      final PollOption pollOption = new PollOption();
+      pollOption.setPollOptionId(pollOptionId);
+      pollOption.setPoll(poll);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(pollOptionRepository.findById(pollOptionId)).thenReturn(Optional.of(pollOption));
+      when(pollParticipantAnswerRepository.existsByActivityParticipantAndPollOptionPoll(
+              participant, poll))
+          .thenReturn(false);
+      when(pollParticipantAnswerRepository.save(any(PollParticipantAnswer.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      activityService.answerPollOption(requestDto);
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(pollOptionRepository).findById(pollOptionId);
+      verify(pollParticipantAnswerRepository)
+          .existsByActivityParticipantAndPollOptionPoll(participant, poll);
+      verify(pollParticipantAnswerRepository).save(any(PollParticipantAnswer.class));
+    }
+
+    @Test
+    @DisplayName("Should throw when participant is not found")
+    void shouldThrowWhenParticipantIsNotFound() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID pollOptionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final AnswerPollDto requestDto = new AnswerPollDto();
+      requestDto.setActivitySessionId(activitySessionId);
+      requestDto.setPollOptionId(pollOptionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(NotFoundException.class, () -> activityService.answerPollOption(requestDto));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verifyNoInteractions(pollOptionRepository, pollParticipantAnswerRepository);
+    }
+
+    @Test
+    @DisplayName("Should throw when poll option is not found")
+    void shouldThrowWhenPollOptionIsNotFound() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID pollOptionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final AnswerPollDto requestDto = new AnswerPollDto();
+      requestDto.setActivitySessionId(activitySessionId);
+      requestDto.setPollOptionId(pollOptionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(pollOptionRepository.findById(pollOptionId)).thenReturn(Optional.empty());
+
+      assertThrows(NotFoundException.class, () -> activityService.answerPollOption(requestDto));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(pollOptionRepository).findById(pollOptionId);
+      verifyNoInteractions(pollParticipantAnswerRepository);
+    }
+
+    @Test
+    @DisplayName("Should throw when poll already answered")
+    void shouldThrowWhenPollAlreadyAnswered() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID pollOptionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final AnswerPollDto requestDto = new AnswerPollDto();
+      requestDto.setActivitySessionId(activitySessionId);
+      requestDto.setPollOptionId(pollOptionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+
+      final Poll poll = new Poll();
+      poll.setPollId(UUID.randomUUID());
+
+      final PollOption pollOption = new PollOption();
+      pollOption.setPollOptionId(pollOptionId);
+      pollOption.setPoll(poll);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(pollOptionRepository.findById(pollOptionId)).thenReturn(Optional.of(pollOption));
+      when(pollParticipantAnswerRepository.existsByActivityParticipantAndPollOptionPoll(
+              participant, poll))
+          .thenReturn(true);
+
+      assertThrows(BadRequestException.class, () -> activityService.answerPollOption(requestDto));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(pollOptionRepository).findById(pollOptionId);
+      verify(pollParticipantAnswerRepository)
+          .existsByActivityParticipantAndPollOptionPoll(participant, poll);
+      verify(pollParticipantAnswerRepository, never()).save(any(PollParticipantAnswer.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("get quiz score")
+  class GetQuizScore {
+
+    @Test
+    @DisplayName("Should return quiz score when participant has answers")
+    void shouldReturnQuizScoreWhenParticipantHasAnswers() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+
+      final QuizQuestion question1 = new QuizQuestion();
+      question1.setQuizQuestionId(UUID.randomUUID());
+      question1.setCorrectAnswer(true);
+
+      final QuizQuestion question2 = new QuizQuestion();
+      question2.setQuizQuestionId(UUID.randomUUID());
+      question2.setCorrectAnswer(false);
+
+      final QuizQuestion question3 = new QuizQuestion();
+      question3.setQuizQuestionId(UUID.randomUUID());
+      question3.setCorrectAnswer(true);
+
+      final QuizParticipantAnswer answer1 = new QuizParticipantAnswer();
+      answer1.setActivityParticipant(participant);
+      answer1.setQuizQuestion(question1);
+      answer1.setUserAnswer(true); // correct
+
+      final QuizParticipantAnswer answer2 = new QuizParticipantAnswer();
+      answer2.setActivityParticipant(participant);
+      answer2.setQuizQuestion(question2);
+      answer2.setUserAnswer(true); // incorrect
+
+      final QuizParticipantAnswer answer3 = new QuizParticipantAnswer();
+      answer3.setActivityParticipant(participant);
+      answer3.setQuizQuestion(question3);
+      answer3.setUserAnswer(true); // correct
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(quizParticipantAnswerRepository.findByActivityParticipant(participant))
+          .thenReturn(List.of(answer1, answer2, answer3));
+
+      final int result = activityService.getQuizScore(activitySessionId);
+
+      assertEquals(2, result);
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(quizParticipantAnswerRepository).findByActivityParticipant(participant);
+    }
+
+    @Test
+    @DisplayName("Should return zero when participant has no answers")
+    void shouldReturnZeroWhenParticipantHasNoAnswers() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(quizParticipantAnswerRepository.findByActivityParticipant(participant))
+          .thenReturn(List.of());
+
+      final int result = activityService.getQuizScore(activitySessionId);
+
+      assertEquals(0, result);
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(quizParticipantAnswerRepository).findByActivityParticipant(participant);
+    }
+
+    @Test
+    @DisplayName("Should return zero when all answers are incorrect")
+    void shouldReturnZeroWhenAllAnswersAreIncorrect() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+
+      final QuizQuestion question1 = new QuizQuestion();
+      question1.setQuizQuestionId(UUID.randomUUID());
+      question1.setCorrectAnswer(true);
+
+      final QuizQuestion question2 = new QuizQuestion();
+      question2.setQuizQuestionId(UUID.randomUUID());
+      question2.setCorrectAnswer(false);
+
+      final QuizParticipantAnswer answer1 = new QuizParticipantAnswer();
+      answer1.setActivityParticipant(participant);
+      answer1.setQuizQuestion(question1);
+      answer1.setUserAnswer(false); // incorrect
+
+      final QuizParticipantAnswer answer2 = new QuizParticipantAnswer();
+      answer2.setActivityParticipant(participant);
+      answer2.setQuizQuestion(question2);
+      answer2.setUserAnswer(true); // incorrect
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(quizParticipantAnswerRepository.findByActivityParticipant(participant))
+          .thenReturn(List.of(answer1, answer2));
+
+      final int result = activityService.getQuizScore(activitySessionId);
+
+      assertEquals(0, result);
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(quizParticipantAnswerRepository).findByActivityParticipant(participant);
+    }
+
+    @Test
+    @DisplayName("Should throw when participant is not found")
+    void shouldThrowWhenParticipantIsNotFound() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(NotFoundException.class, () -> activityService.getQuizScore(activitySessionId));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verifyNoInteractions(quizParticipantAnswerRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("invite participant")
+  class InviteParticipant {
+
+    @Test
+    @DisplayName("Should invite participant successfully")
+    void shouldInviteParticipantSuccessfully() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+
+      final ActivitySession session = new ActivitySession();
+      session.setActivitySessionId(activitySessionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      final AppUser friend = new AppUser();
+      friend.setAppUserId(friendId);
+
+      final ActivityParticipant hostParticipant = new ActivityParticipant();
+      hostParticipant.setActivitySession(session);
+      hostParticipant.setRole(ParticipantRole.HOST);
+
+      when(activitySessionRepository.findById(activitySessionId)).thenReturn(Optional.of(session));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, currentUserId))
+          .thenReturn(Optional.of(hostParticipant));
+      when(appUserRepository.findById(friendId)).thenReturn(Optional.of(friend));
+      when(friendRepository.existsByRequesterUserAppUserIdAndReceiverUserAppUserId(
+              currentUserId, friendId))
+          .thenReturn(true);
+      when(activityParticipantRepository.existsByActivitySessionAndAppUser(session, friend))
+          .thenReturn(false);
+      when(activityParticipantRepository.save(any(ActivityParticipant.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      activityService.inviteParticipant(activitySessionId, friendId);
+
+      final ArgumentCaptor<ActivityParticipant> captor =
+          ArgumentCaptor.forClass(ActivityParticipant.class);
+
+      verify(activityParticipantRepository).save(captor.capture());
+
+      final ActivityParticipant savedParticipant = captor.getValue();
+      assertEquals(session, savedParticipant.getActivitySession());
+      assertEquals(friend, savedParticipant.getAppUser());
+      assertEquals(ParticipantRole.PARTICIPANT, savedParticipant.getRole());
+      assertEquals(ParticipantStatus.PENDING, savedParticipant.getStatus());
+      assertNotNull(savedParticipant.getInvitedAt());
+    }
+
+    @Test
+    @DisplayName("Should throw when session is not found")
+    void shouldThrowWhenSessionIsNotFound() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+
+      when(activitySessionRepository.findById(activitySessionId)).thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class,
+          () -> activityService.inviteParticipant(activitySessionId, friendId));
+
+      verify(activitySessionRepository).findById(activitySessionId);
+      verifyNoInteractions(
+          userService, activityParticipantRepository, appUserRepository, friendRepository);
+    }
+
+    @Test
+    @DisplayName("Should throw when current user is not participant")
+    void shouldThrowWhenCurrentUserIsNotParticipant() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+
+      final ActivitySession session = new ActivitySession();
+      session.setActivitySessionId(activitySessionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      when(activitySessionRepository.findById(activitySessionId)).thenReturn(Optional.of(session));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, currentUserId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class,
+          () -> activityService.inviteParticipant(activitySessionId, friendId));
+
+      verify(activitySessionRepository).findById(activitySessionId);
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, currentUserId);
+      verifyNoInteractions(appUserRepository, friendRepository);
+    }
+
+    @Test
+    @DisplayName("Should throw when current user is not host")
+    void shouldThrowWhenCurrentUserIsNotHost() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+
+      final ActivitySession session = new ActivitySession();
+      session.setActivitySessionId(activitySessionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setActivitySession(session);
+      participant.setRole(ParticipantRole.PARTICIPANT);
+
+      when(activitySessionRepository.findById(activitySessionId)).thenReturn(Optional.of(session));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, currentUserId))
+          .thenReturn(Optional.of(participant));
+
+      assertThrows(
+          BadRequestException.class,
+          () -> activityService.inviteParticipant(activitySessionId, friendId));
+
+      verify(activitySessionRepository).findById(activitySessionId);
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, currentUserId);
+      verifyNoInteractions(appUserRepository, friendRepository);
+    }
+
+    @Test
+    @DisplayName("Should throw when friend is not found")
+    void shouldThrowWhenFriendIsNotFound() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+
+      final ActivitySession session = new ActivitySession();
+      session.setActivitySessionId(activitySessionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      final ActivityParticipant hostParticipant = new ActivityParticipant();
+      hostParticipant.setActivitySession(session);
+      hostParticipant.setRole(ParticipantRole.HOST);
+
+      when(activitySessionRepository.findById(activitySessionId)).thenReturn(Optional.of(session));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, currentUserId))
+          .thenReturn(Optional.of(hostParticipant));
+      when(appUserRepository.findById(friendId)).thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class,
+          () -> activityService.inviteParticipant(activitySessionId, friendId));
+
+      verify(appUserRepository).findById(friendId);
+      verifyNoInteractions(friendRepository);
+    }
+
+    @Test
+    @DisplayName("Should throw when user invites himself")
+    void shouldThrowWhenUserInvitesHimself() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
+      final ActivitySession session = new ActivitySession();
+      session.setActivitySessionId(activitySessionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      final AppUser friend = new AppUser();
+      friend.setAppUserId(currentUserId);
+
+      final ActivityParticipant hostParticipant = new ActivityParticipant();
+      hostParticipant.setActivitySession(session);
+      hostParticipant.setRole(ParticipantRole.HOST);
+
+      when(activitySessionRepository.findById(activitySessionId)).thenReturn(Optional.of(session));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, currentUserId))
+          .thenReturn(Optional.of(hostParticipant));
+      when(appUserRepository.findById(currentUserId)).thenReturn(Optional.of(friend));
+
+      assertThrows(
+          BadRequestException.class,
+          () -> activityService.inviteParticipant(activitySessionId, currentUserId));
+
+      verify(appUserRepository).findById(currentUserId);
+      verifyNoInteractions(friendRepository);
+      verify(activityParticipantRepository, never()).save(any(ActivityParticipant.class));
+    }
+
+    @Test
+    @DisplayName("Should throw when invited user is not a friend")
+    void shouldThrowWhenInvitedUserIsNotFriend() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+
+      final ActivitySession session = new ActivitySession();
+      session.setActivitySessionId(activitySessionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      final AppUser friend = new AppUser();
+      friend.setAppUserId(friendId);
+
+      final ActivityParticipant hostParticipant = new ActivityParticipant();
+      hostParticipant.setActivitySession(session);
+      hostParticipant.setRole(ParticipantRole.HOST);
+
+      when(activitySessionRepository.findById(activitySessionId)).thenReturn(Optional.of(session));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, currentUserId))
+          .thenReturn(Optional.of(hostParticipant));
+      when(appUserRepository.findById(friendId)).thenReturn(Optional.of(friend));
+      when(friendRepository.existsByRequesterUserAppUserIdAndReceiverUserAppUserId(
+              currentUserId, friendId))
+          .thenReturn(false);
+
+      assertThrows(
+          BadRequestException.class,
+          () -> activityService.inviteParticipant(activitySessionId, friendId));
+
+      verify(friendRepository)
+          .existsByRequesterUserAppUserIdAndReceiverUserAppUserId(currentUserId, friendId);
+      verify(activityParticipantRepository, never())
+          .existsByActivitySessionAndAppUser(any(), any());
+      verify(activityParticipantRepository, never()).save(any(ActivityParticipant.class));
+    }
+
+    @Test
+    @DisplayName("Should throw when friend is already participant")
+    void shouldThrowWhenFriendIsAlreadyParticipant() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+
+      final ActivitySession session = new ActivitySession();
+      session.setActivitySessionId(activitySessionId);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      final AppUser friend = new AppUser();
+      friend.setAppUserId(friendId);
+
+      final ActivityParticipant hostParticipant = new ActivityParticipant();
+      hostParticipant.setActivitySession(session);
+      hostParticipant.setRole(ParticipantRole.HOST);
+
+      when(activitySessionRepository.findById(activitySessionId)).thenReturn(Optional.of(session));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, currentUserId))
+          .thenReturn(Optional.of(hostParticipant));
+      when(appUserRepository.findById(friendId)).thenReturn(Optional.of(friend));
+      when(friendRepository.existsByRequesterUserAppUserIdAndReceiverUserAppUserId(
+              currentUserId, friendId))
+          .thenReturn(true);
+      when(activityParticipantRepository.existsByActivitySessionAndAppUser(session, friend))
+          .thenReturn(true);
+
+      assertThrows(
+          BadRequestException.class,
+          () -> activityService.inviteParticipant(activitySessionId, friendId));
+
+      verify(activityParticipantRepository).existsByActivitySessionAndAppUser(session, friend);
+      verify(activityParticipantRepository, never()).save(any(ActivityParticipant.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("accept invitation")
+  class AcceptInvitation {
+
+    @Test
+    @DisplayName("Should accept invitation successfully")
+    void shouldAcceptInvitationSuccessfully() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+      participant.setStatus(ParticipantStatus.PENDING);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(activityParticipantRepository.save(any(ActivityParticipant.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      activityService.acceptInvitation(activitySessionId);
+
+      assertEquals(ParticipantStatus.JOINED, participant.getStatus());
+      assertNotNull(participant.getJoinedAt());
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(activityParticipantRepository).save(participant);
+    }
+
+    @Test
+    @DisplayName("Should throw when participant is not found")
+    void shouldThrowWhenParticipantIsNotFound() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class, () -> activityService.acceptInvitation(activitySessionId));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(activityParticipantRepository, never()).save(any(ActivityParticipant.class));
+    }
+
+    @Test
+    @DisplayName("Should throw when invitation is not pending")
+    void shouldThrowWhenInvitationIsNotPending() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+      participant.setStatus(ParticipantStatus.JOINED);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+
+      assertThrows(
+          BadRequestException.class, () -> activityService.acceptInvitation(activitySessionId));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(activityParticipantRepository, never()).save(any(ActivityParticipant.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("decline invitation")
+  class DeclineInvitation {
+
+    @Test
+    @DisplayName("Should decline invitation successfully")
+    void shouldDeclineInvitationSuccessfully() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+      participant.setStatus(ParticipantStatus.PENDING);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(activityParticipantRepository.save(any(ActivityParticipant.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      activityService.declineInvitation(activitySessionId);
+
+      assertEquals(ParticipantStatus.DECLINED, participant.getStatus());
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(activityParticipantRepository).save(participant);
+    }
+
+    @Test
+    @DisplayName("Should throw when participant is not found")
+    void shouldThrowWhenParticipantIsNotFound() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class, () -> activityService.declineInvitation(activitySessionId));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(activityParticipantRepository, never()).save(any(ActivityParticipant.class));
+    }
+
+    @Test
+    @DisplayName("Should throw when invitation is not pending")
+    void shouldThrowWhenInvitationIsNotPending() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+      participant.setStatus(ParticipantStatus.JOINED);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+
+      assertThrows(
+          BadRequestException.class, () -> activityService.declineInvitation(activitySessionId));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(activityParticipantRepository, never()).save(any(ActivityParticipant.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("send message")
+  class SendMessage {
+
+    @Test
+    @DisplayName("Should send message successfully")
+    void shouldSendMessageSuccessfully() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final SendMessageDto dto = new SendMessageDto();
+      dto.setContent("Hello world");
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivitySession session = new ActivitySession();
+      session.setActivitySessionId(activitySessionId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+      participant.setActivitySession(session);
+      participant.setStatus(ParticipantStatus.JOINED);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(activityMessageRepository.save(any(ActivityMessage.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      activityService.sendMessage(activitySessionId, dto);
+
+      final ArgumentCaptor<ActivityMessage> captor = ArgumentCaptor.forClass(ActivityMessage.class);
+
+      verify(activityMessageRepository).save(captor.capture());
+
+      final ActivityMessage savedMessage = captor.getValue();
+      assertEquals(session, savedMessage.getActivitySession());
+      assertEquals("Hello world", savedMessage.getContent());
+      assertEquals(user, savedMessage.getSender());
+      assertNotNull(savedMessage.getSentAt());
+    }
+
+    @Test
+    @DisplayName("Should throw when participant is not found")
+    void shouldThrowWhenParticipantIsNotFound() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final SendMessageDto dto = new SendMessageDto();
+      dto.setContent("Hello");
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class, () -> activityService.sendMessage(activitySessionId, dto));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verifyNoInteractions(activityMessageRepository);
+    }
+
+    @Test
+    @DisplayName("Should throw when participant is not joined")
+    void shouldThrowWhenParticipantIsNotJoined() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final SendMessageDto dto = new SendMessageDto();
+      dto.setContent("Hello");
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser user = new AppUser();
+      user.setAppUserId(userId);
+
+      final ActivitySession session = new ActivitySession();
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(user);
+      participant.setActivitySession(session);
+      participant.setStatus(ParticipantStatus.PENDING);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+
+      assertThrows(
+          BadRequestException.class, () -> activityService.sendMessage(activitySessionId, dto));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(activityMessageRepository, never()).save(any(ActivityMessage.class));
+    }
+  }
+
+  @Nested
+  @DisplayName("get messages")
+  class GetMessages {
+
+    @Test
+    @DisplayName("Should return activity messages successfully")
+    void shouldReturnActivityMessagesSuccessfully() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser currentAppUser = new AppUser();
+      currentAppUser.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(currentAppUser);
+      participant.setStatus(ParticipantStatus.JOINED);
+
+      final AppUser sender1 = new AppUser();
+      sender1.setAppUserId(UUID.randomUUID());
+      sender1.setPseudo("alice");
+
+      final AppUser sender2 = new AppUser();
+      sender2.setAppUserId(UUID.randomUUID());
+      sender2.setPseudo("bob");
+
+      final ActivityMessage message1 = new ActivityMessage();
+      message1.setActivityMessageId(UUID.randomUUID());
+      message1.setSender(sender1);
+      message1.setContent("Bonjour");
+      message1.setSentAt(Instant.now().minusSeconds(60));
+
+      final ActivityMessage message2 = new ActivityMessage();
+      message2.setActivityMessageId(UUID.randomUUID());
+      message2.setSender(sender2);
+      message2.setContent("Salut");
+      message2.setSentAt(Instant.now());
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(activityMessageRepository.findByActivitySessionActivitySessionIdOrderBySentAtAsc(
+              activitySessionId))
+          .thenReturn(List.of(message1, message2));
+
+      final List<ActivityMessageDto> result = activityService.getMessages(activitySessionId);
+
+      assertNotNull(result);
+      assertEquals(2, result.size());
+
+      assertEquals(message1.getActivityMessageId(), result.get(0).getActivityMessageId());
+      assertEquals(sender1.getAppUserId(), result.get(0).getSenderId());
+      assertEquals("alice", result.get(0).getSenderUsername());
+      assertEquals("Bonjour", result.get(0).getContent());
+      assertEquals(message1.getSentAt(), result.get(0).getSentAt());
+
+      assertEquals(message2.getActivityMessageId(), result.get(1).getActivityMessageId());
+      assertEquals(sender2.getAppUserId(), result.get(1).getSenderId());
+      assertEquals("bob", result.get(1).getSenderUsername());
+      assertEquals("Salut", result.get(1).getContent());
+      assertEquals(message2.getSentAt(), result.get(1).getSentAt());
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(activityMessageRepository)
+          .findByActivitySessionActivitySessionIdOrderBySentAtAsc(activitySessionId);
+    }
+
+    @Test
+    @DisplayName("Should return empty list when session has no messages")
+    void shouldReturnEmptyListWhenSessionHasNoMessages() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser currentAppUser = new AppUser();
+      currentAppUser.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(currentAppUser);
+      participant.setStatus(ParticipantStatus.JOINED);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+      when(activityMessageRepository.findByActivitySessionActivitySessionIdOrderBySentAtAsc(
+              activitySessionId))
+          .thenReturn(List.of());
+
+      final List<ActivityMessageDto> result = activityService.getMessages(activitySessionId);
+
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verify(activityMessageRepository)
+          .findByActivitySessionActivitySessionIdOrderBySentAtAsc(activitySessionId);
+    }
+
+    @Test
+    @DisplayName("Should throw when participant is not found")
+    void shouldThrowWhenParticipantIsNotFound() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(NotFoundException.class, () -> activityService.getMessages(activitySessionId));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verifyNoInteractions(activityMessageRepository);
+    }
+
+    @Test
+    @DisplayName("Should throw when participant is not joined")
+    void shouldThrowWhenParticipantIsNotJoined() {
+      final UUID activitySessionId = UUID.randomUUID();
+      final UUID userId = UUID.randomUUID();
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(userId);
+
+      final AppUser currentAppUser = new AppUser();
+      currentAppUser.setAppUserId(userId);
+
+      final ActivityParticipant participant = new ActivityParticipant();
+      participant.setAppUser(currentAppUser);
+      participant.setStatus(ParticipantStatus.PENDING);
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(activityParticipantRepository.findByActivitySessionActivitySessionIdAndAppUserAppUserId(
+              activitySessionId, userId))
+          .thenReturn(Optional.of(participant));
+
+      assertThrows(BadRequestException.class, () -> activityService.getMessages(activitySessionId));
+
+      verify(userService).getCurrentUser();
+      verify(activityParticipantRepository)
+          .findByActivitySessionActivitySessionIdAndAppUserAppUserId(activitySessionId, userId);
+      verifyNoInteractions(activityMessageRepository);
     }
   }
 }
