@@ -19,4 +19,6 @@ public interface ProgressionRepository extends JpaRepository<Progression, UUID> 
   long countByAppUserAppUserIdAndSetAsideTrue(UUID userId);
 
   long countByAppUserAppUserIdAndExploitedTrue(UUID userId);
+
+  long countByExploitedTrue();
 }

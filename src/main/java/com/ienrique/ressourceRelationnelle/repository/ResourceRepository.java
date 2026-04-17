@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import com.ienrique.ressourceRelationnelle.entity.Resource;
 import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
+import com.ienrique.ressourceRelationnelle.entity.ResourceType;
 
 @Repository
 public interface ResourceRepository
@@ -18,6 +19,8 @@ public interface ResourceRepository
   Optional<Resource> findByResourceId(UUID resourceId);
 
   Optional<Resource> findByResourceTitle(String resourceTitle);
+
+  Optional<Resource> findByResourceType(ResourceType type);
 
   List<Resource> findByCategoryCategoryId(UUID categoryId);
 
