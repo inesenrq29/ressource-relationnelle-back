@@ -40,7 +40,7 @@ public class UserController {
     return ResponseEntity.noContent().build();
   }
 
-  @GetMapping("/{userId}") // TODO: mettre en place PreAuthorize
+  @GetMapping("/id/{userId}") // TODO: mettre en place PreAuthorize
   public ResponseEntity<UserDto> getUserById(@PathVariable final UUID userId) {
     final UserDto response = userService.getUserById(userId);
     return ResponseEntity.ok(response);

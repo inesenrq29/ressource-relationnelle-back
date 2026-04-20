@@ -102,6 +102,8 @@ public class UserServiceImpl implements UserService {
     user.setStatus(AccountStatus.ACTIVE);
     user.setCreatedAt(Instant.now());
     user.setUpdatedAt(Instant.now());
+    user.setHashedPassword(passwordEncoder.encode(createAccount.getPassword()));
+    user.setMail(createAccount.getMail());
 
     // ajout du role
     user.setRole(roleMapper.toEntity(createAccount.getRole()));
@@ -139,10 +141,10 @@ public class UserServiceImpl implements UserService {
     final Jwt jwt = (Jwt) authentication.getPrincipal();
 
     // récupère le subject du token ici l'email
-    final String email = jwt.getSubject();
+    final UUID userId = UUID.fromString(jwt.getSubject());
 
     final AppUser user =
-        userRepository.findByMail(email).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
 
     return userMapper.toDto(user);
   }

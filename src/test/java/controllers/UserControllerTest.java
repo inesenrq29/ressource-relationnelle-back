@@ -2,9 +2,7 @@ package controllers;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -12,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
@@ -155,7 +154,7 @@ public class UserControllerTest {
 
       mockMvc
           .perform(
-              get("/api/users/{userId}", userId).with(jwt()).accept(MediaType.APPLICATION_JSON))
+              get("/api/users/id/{userId}", userId).with(jwt()).accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isOk());
     }
 
@@ -172,7 +171,7 @@ public class UserControllerTest {
 
       mockMvc
           .perform(
-              get("/api/users/{userId}", userId).with(jwt()).accept(MediaType.APPLICATION_JSON))
+              get("/api/users/id/{userId}", userId).with(jwt()).accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isForbidden());
     }
 
@@ -183,7 +182,7 @@ public class UserControllerTest {
       when(userService.getUserById(userId)).thenThrow(new NotFoundException("User not found"));
 
       mockMvc
-          .perform(get("/api/users/{userId}", userId).with(jwt()))
+          .perform(get("/api/users/id/{userId}", userId).with(jwt()))
           .andExpect(status().isNotFound());
     }
   }
@@ -274,15 +273,24 @@ public class UserControllerTest {
     @Test
     @DisplayName("should create account with role")
     void shouldCreateAccountWithRole() throws Exception {
-      final CreateAccountDto request = new CreateAccountDto();
-      final RoleDto role = new RoleDto();
-      role.setRoleId(UUID.randomUUID());
-      role.setRoleName("SUPER-ADMIN");
-      request.setPseudo("new account");
-      request.setRole(role);
-      final UserDto userDto = new UserDto();
+      final UUID roleId = UUID.randomUUID();
 
-      when(userService.createAccountWithRole(request)).thenReturn(userDto);
+      final CreateAccountDto request = new CreateAccountDto();
+      request.setPseudo("new account");
+      request.setMail("newaccount@test.com");
+      request.setPassword("Password123");
+
+      final RoleDto role = new RoleDto();
+      role.setRoleId(roleId);
+      role.setRoleName("SUPER-ADMIN");
+      request.setRole(role);
+
+      final UserDto userDto = new UserDto();
+      userDto.setPseudo("new account");
+      userDto.setMail("newaccount@test.com");
+      userDto.setAppUserIsActive(true);
+
+      when(userService.createAccountWithRole(any(CreateAccountDto.class))).thenReturn(userDto);
 
       mockMvc
           .perform(
@@ -290,7 +298,12 @@ public class UserControllerTest {
                   .with(jwt())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(request)))
-          .andExpect(status().isCreated());
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.pseudo").value("new account"))
+          .andExpect(jsonPath("$.mail").value("newaccount@test.com"))
+          .andExpect(jsonPath("$.appUserIsActive").value(true));
+
+      verify(userService).createAccountWithRole(any(CreateAccountDto.class));
     }
   }
 }

@@ -18,5 +18,13 @@ public class CreateAccountDto {
   @Size(min = 3, max = 100)
   private String pseudo;
 
+  @NotBlank
+  @Size(max = 255)
+  private String mail;
+
+  @NotBlank
+  @Size(min = 8, max = 255)
+  private String password;
+
   @NotNull private RoleDto role;
 }

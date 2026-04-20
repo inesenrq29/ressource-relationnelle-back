@@ -289,17 +289,25 @@ public class UserServiceTest {
     @Test
     @DisplayName("should create account with role")
     void shouldCreateAccountWithRole() {
+      final UUID roleId = UUID.randomUUID();
+
       final CreateAccountDto createAccountDto = new CreateAccountDto();
       createAccountDto.setPseudo("  john_doe  ");
+      createAccountDto.setMail("john_doe@test.com");
+      createAccountDto.setPassword("Password123");
+
       final RoleDto roleDto = new RoleDto();
+      roleDto.setRoleId(roleId);
       roleDto.setRoleName("ADMIN");
       createAccountDto.setRole(roleDto);
 
       final Role role = new Role();
+      role.setRoleId(roleId);
       role.setRoleName("ADMIN");
 
       final AppUser savedUser = new AppUser();
       savedUser.setPseudo("john_doe");
+      savedUser.setMail("john_doe@test.com");
       savedUser.setStatus(AccountStatus.ACTIVE);
       savedUser.setRole(role);
       savedUser.setCreatedAt(Instant.now());
@@ -307,6 +315,7 @@ public class UserServiceTest {
 
       final UserDto expectedDto = new UserDto();
       expectedDto.setPseudo("john_doe");
+      expectedDto.setMail("john_doe@test.com");
       expectedDto.setAppUserIsActive(true);
 
       when(roleMapper.toEntity(roleDto)).thenReturn(role);
@@ -327,6 +336,9 @@ public class UserServiceTest {
       assertEquals(role, userToSave.getRole());
       assertNotNull(userToSave.getCreatedAt());
       assertNotNull(userToSave.getUpdatedAt());
+
+      verify(roleMapper).toEntity(roleDto);
+      verify(userMapper).toDto(savedUser);
     }
 
     @Test
@@ -336,6 +348,10 @@ public class UserServiceTest {
           assertThrows(BadRequestException.class, () -> userService.createAccountWithRole(null));
 
       assertEquals("Create account payload is required", exception.getMessage());
+
+      verify(userRepository, never()).save(any(AppUser.class));
+      verify(roleMapper, never()).toEntity(any(RoleDto.class));
+      verify(userMapper, never()).toDto(any(AppUser.class));
     }
 
     @Test
@@ -343,7 +359,11 @@ public class UserServiceTest {
     void shouldThrowWhenPseudoIsNull() {
       final CreateAccountDto createAccountDto = new CreateAccountDto();
       createAccountDto.setPseudo(null);
+      createAccountDto.setMail("john_doe@test.com");
+      createAccountDto.setPassword("Password123");
+
       final RoleDto roleDto = new RoleDto();
+      roleDto.setRoleId(UUID.randomUUID());
       roleDto.setRoleName("ADMIN");
       createAccountDto.setRole(roleDto);
 
@@ -352,6 +372,10 @@ public class UserServiceTest {
               BadRequestException.class, () -> userService.createAccountWithRole(createAccountDto));
 
       assertEquals("Pseudo is required", exception.getMessage());
+
+      verify(userRepository, never()).save(any(AppUser.class));
+      verify(roleMapper, never()).toEntity(any(RoleDto.class));
+      verify(userMapper, never()).toDto(any(AppUser.class));
     }
 
     @Test
@@ -359,7 +383,11 @@ public class UserServiceTest {
     void shouldThrowWhenPseudoIsBlank() {
       final CreateAccountDto createAccountDto = new CreateAccountDto();
       createAccountDto.setPseudo("   ");
+      createAccountDto.setMail("john_doe@test.com");
+      createAccountDto.setPassword("Password123");
+
       final RoleDto roleDto = new RoleDto();
+      roleDto.setRoleId(UUID.randomUUID());
       roleDto.setRoleName("ADMIN");
       createAccountDto.setRole(roleDto);
 
@@ -368,6 +396,10 @@ public class UserServiceTest {
               BadRequestException.class, () -> userService.createAccountWithRole(createAccountDto));
 
       assertEquals("Pseudo is required", exception.getMessage());
+
+      verify(userRepository, never()).save(any(AppUser.class));
+      verify(roleMapper, never()).toEntity(any(RoleDto.class));
+      verify(userMapper, never()).toDto(any(AppUser.class));
     }
 
     @Test
@@ -375,6 +407,8 @@ public class UserServiceTest {
     void shouldThrowWhenRoleIsNull() {
       final CreateAccountDto createAccountDto = new CreateAccountDto();
       createAccountDto.setPseudo("john_doe");
+      createAccountDto.setMail("john_doe@test.com");
+      createAccountDto.setPassword("Password123");
       createAccountDto.setRole(null);
 
       final BadRequestException exception =
@@ -382,6 +416,10 @@ public class UserServiceTest {
               BadRequestException.class, () -> userService.createAccountWithRole(createAccountDto));
 
       assertEquals("Role is required", exception.getMessage());
+
+      verify(userRepository, never()).save(any(AppUser.class));
+      verify(roleMapper, never()).toEntity(any(RoleDto.class));
+      verify(userMapper, never()).toDto(any(AppUser.class));
     }
   }
 
@@ -402,14 +440,14 @@ public class UserServiceTest {
     @Test
     @DisplayName("should get current user")
     void shouldGetCurrentUser() {
-      final String email = "test@mail.com";
+      final UUID userId = UUID.randomUUID();
       final AppUser user = new AppUser();
       final UserDto userDto = new UserDto();
 
       when(securityContext.getAuthentication()).thenReturn(authentication);
       when(authentication.getPrincipal()).thenReturn(jwt);
-      when(jwt.getSubject()).thenReturn(email);
-      when(userRepository.findByMail(email)).thenReturn(Optional.of(user));
+      when(jwt.getSubject()).thenReturn(String.valueOf(userId));
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
       when(userMapper.toDto(user)).thenReturn(userDto);
 
       final UserDto result = userService.getCurrentUser();
@@ -419,12 +457,12 @@ public class UserServiceTest {
 
     @Test
     void shouldThrowNotFoundExceptionWhenUserDoesNotExist() {
-      final String email = "unknown@mail.com";
+      final UUID userId = UUID.randomUUID();
 
       when(securityContext.getAuthentication()).thenReturn(authentication);
       when(authentication.getPrincipal()).thenReturn(jwt);
-      when(jwt.getSubject()).thenReturn(email);
-      when(userRepository.findByMail(email)).thenReturn(Optional.empty());
+      when(jwt.getSubject()).thenReturn(String.valueOf(userId));
+      when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
       final NotFoundException exception =
           assertThrows(NotFoundException.class, () -> userService.getCurrentUser());
