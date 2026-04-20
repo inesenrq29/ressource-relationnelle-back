@@ -1,6 +1,7 @@
 package com.ienrique.ressourceRelationnelle.dto;
 
-import jakarta.validation.constraints.AssertTrue;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -32,7 +33,8 @@ public class RegisterUserDto {
   @Size(min = 8, max = 255)
   private String confirmPassword;
 
-  @AssertTrue private boolean areTermsAccepted;
+  private boolean areTermsAccepted;
 
-  @AssertTrue private boolean isPrivacyPolicyAccepted;
+  @JsonProperty("isPrivacyPolicyAccepted")
+  private boolean isPrivacyPolicyAccepted;
 }
