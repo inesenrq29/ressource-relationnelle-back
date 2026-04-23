@@ -460,6 +460,19 @@ public class ResourceServiceImpl implements ResourceService {
     return shareResourceMapper.toDto(resource);
   }
 
+  @Override
+  public void validateResource(UUID resourceId) {
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    validateStatusTransition(resource.getStatus(), ResourceStatus.PUBLISHED);
+
+    resource.setStatus(ResourceStatus.PUBLISHED);
+    resourceRepository.save(resource);
+  }
+
   private void validateStatusTransition(ResourceStatus current, ResourceStatus next) {
     if (current == next) {
       throw new BadRequestException("Resource already has this status");

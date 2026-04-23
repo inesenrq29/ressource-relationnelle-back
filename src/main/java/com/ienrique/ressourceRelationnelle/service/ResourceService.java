@@ -43,4 +43,6 @@ public interface ResourceService {
   void shareResource(UUID resourceId, UUID friendId, ShareResourceRequestDto request);
 
   SharedResourceDto getSharedResource(UUID sharedResourceId);
+
+  void validateResource(UUID resourceId);
 }

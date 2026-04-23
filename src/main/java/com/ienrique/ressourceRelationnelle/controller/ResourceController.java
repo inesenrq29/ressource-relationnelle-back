@@ -64,6 +64,12 @@ public class ResourceController {
     return ResponseEntity.noContent().build();
   }
 
+  @PatchMapping("/{resourceId}/validate")
+  public ResponseEntity<Void> validateResource(@PathVariable final UUID resourceId) {
+    resourceService.validateResource(resourceId);
+    return ResponseEntity.noContent().build();
+  }
+
   @PutMapping("/{resourceId}/status")
   public ResponseEntity<Void> updateResourceStatus(
       @PathVariable final UUID resourceId,
