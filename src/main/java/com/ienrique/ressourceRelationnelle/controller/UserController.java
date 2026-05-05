@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -33,6 +34,7 @@ public class UserController {
   private final UserService userService;
 
   @DeleteMapping("/{userId}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> deleteAccount(
       @PathVariable final UUID userId,
       final @Valid @RequestBody DeleteAccountDto deleteAccountDto) {
@@ -40,13 +42,15 @@ public class UserController {
     return ResponseEntity.noContent().build();
   }
 
-  @GetMapping("/id/{userId}") // TODO: mettre en place PreAuthorize
+  @GetMapping("/id/{userId}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<UserDto> getUserById(@PathVariable final UUID userId) {
     final UserDto response = userService.getUserById(userId);
     return ResponseEntity.ok(response);
   }
 
   @PutMapping("/{userId}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> updateUser(
       @PathVariable final UUID userId, final @Valid @RequestBody UpdateUserDto request) {
     userService.updateUser(userId, request);
@@ -54,6 +58,7 @@ public class UserController {
   }
 
   @PatchMapping("/{userId}/status")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<Void> updateUserStatus(
       @PathVariable final UUID userId, final @RequestBody AccountStatus status) {
     userService.updateUserStatus(userId, status);
@@ -61,18 +66,21 @@ public class UserController {
   }
 
   @GetMapping
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<List<UserDto>> getAllUsers() {
     final List<UserDto> response = userService.getAllUsers();
     return ResponseEntity.ok(response);
   }
 
   @GetMapping("/me")
+  @PreAuthorize("hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<UserDto> getCurrentUser() {
     final UserDto currentUser = userService.getCurrentUser();
     return ResponseEntity.ok(currentUser);
   }
 
   @PostMapping("/with-role")
+  @PreAuthorize("hasRole('SUPER_ADMIN')")
   public ResponseEntity<UserDto> createAccountWithRole(
       final @RequestBody @Valid CreateAccountDto createAccountDto) {
     final UserDto createdUser = userService.createAccountWithRole(createAccountDto);

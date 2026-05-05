@@ -40,7 +40,7 @@ public class PasswordController {
   }
 
   @PutMapping("/users/{userId}")
-  @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.name")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> changePassword(
       @PathVariable final UUID userId, @Valid @RequestBody final ChangePasswordDto request) {
     passwordService.changePassword(userId, request);

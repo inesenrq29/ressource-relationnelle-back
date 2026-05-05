@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.ienrique.ressourceRelationnelle.dto.*;
@@ -20,6 +21,9 @@ public class CommentaryController {
   private final CommentaryService commentaryService;
 
   @PostMapping("/{userId}/resources/{resourceId}")
+  @PreAuthorize(
+      "hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN') "
+          + "and (#userId.toString() == principal.subject)")
   public ResponseEntity<CommentDto> addComment(
       final @PathVariable UUID userId,
       final @PathVariable UUID resourceId,
@@ -31,6 +35,9 @@ public class CommentaryController {
   }
 
   @PostMapping("/{userId}/resources/{resourceId}/{commentsId}/reply")
+  @PreAuthorize(
+      "hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN') "
+          + "and (#userId.toString() == principal.subject)")
   public ResponseEntity<CommentDto> respondToComment(
       final @PathVariable UUID userId,
       final @PathVariable UUID resourceId,
@@ -44,6 +51,7 @@ public class CommentaryController {
   }
 
   @PatchMapping("/{commentsId}/moderate")
+  @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<CommentDto> moderateComment(
       final @PathVariable UUID commentsId,
       final @Valid @RequestBody ModerateCommentDto requestDto) {

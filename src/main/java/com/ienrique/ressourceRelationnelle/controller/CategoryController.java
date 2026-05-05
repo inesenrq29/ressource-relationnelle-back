@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,6 +43,7 @@ public class CategoryController {
   }
 
   @PostMapping
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<CategoryDto> createCategory(
       @Valid @RequestBody final CreateCategoryDto request) {
     final CategoryDto response = categoryService.createCategory(request);
@@ -49,6 +51,7 @@ public class CategoryController {
   }
 
   @PutMapping("/{categoryId}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<Void> updateCategory(
       @PathVariable final UUID categoryId, @Valid @RequestBody UpdateCategoryDto request) {
     categoryService.updateCategory(categoryId, request);
@@ -56,6 +59,7 @@ public class CategoryController {
   }
 
   @DeleteMapping("/{categoryId}")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<Void> deleteCategory(@PathVariable final UUID categoryId) {
     categoryService.deleteCategory(categoryId);
     return ResponseEntity.noContent().build();
