@@ -2,9 +2,7 @@ package controllers;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -155,25 +153,6 @@ public class PasswordControllerTest {
           .andExpect(status().isBadRequest());
       verify(passwordService, never()).resetPassword(any(ResetPasswordDto.class));
     }
-
-    /*@Test //TODO: à rajouter quand les exceptions seront créées
-    @DisplayName("Should return 400 when service throws BadRequestException")
-    void shouldReturn400WhenServiceThrowsBadRequest() throws Exception {
-        final ResetPasswordDto requestDto =
-                new ResetPasswordDto("invalid-token", "newPassword12");
-
-        doThrow(new RuntimeException("Invalid or expired token"))
-                .when(passwordService)
-                .resetPassword(any(ResetPasswordDto.class));
-
-        mockMvc
-                .perform(
-                        post("/api/password/reset")
-                                .with(jwt())
-                                .content(objectMapper.writeValueAsString(requestDto))
-                                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
-    }*/
   }
 
   @Nested
@@ -250,45 +229,5 @@ public class PasswordControllerTest {
       verify(passwordService, never())
           .changePassword(any(UUID.class), any(ChangePasswordDto.class));
     }
-
-    /*@Test //TODO: à rajouter quand les exceptions seront créées
-    @DisplayName("Should return 400 when service throws BadRequestException")
-    void shouldReturn400WhenServiceThrowsBadRequest() throws Exception {
-        final UUID userId = UUID.randomUUID();
-        final ChangePasswordDto requestDto =
-                new ChangePasswordDto("wrongPassword", "newPassword12");
-
-        doThrow(new RuntimeException("Invalid current password"))
-                .when(passwordService)
-                .changePassword(eq(userId), any(ChangePasswordDto.class));
-
-        mockMvc
-                .perform(
-                        put("/api/password/users/{userId}", userId)
-                                .with(jwt())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().isBadRequest());
-    }*/
-
-    /*@Test //TODO: à rajouter quand les exceptions seront créées
-    @DisplayName("Should return 404 when user not found")
-    void shouldReturn404WhenUserNotFound() throws Exception {
-        final UUID userId = UUID.randomUUID();
-        final ChangePasswordDto requestDto =
-                new ChangePasswordDto("currentPassword", "newPassword12");
-
-        doThrow(new RuntimeException("User not found"))
-                .when(passwordService)
-                .changePassword(eq(userId), any(ChangePasswordDto.class));
-
-        mockMvc
-                .perform(
-                        put("/api/password/users/{userId}", userId)
-                                .with(jwt())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().isNotFound());
-    }*/
   }
 }

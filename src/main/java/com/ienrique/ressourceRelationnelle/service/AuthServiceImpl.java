@@ -41,7 +41,6 @@ public class AuthServiceImpl implements AuthService {
     // on retourne une erreur si email existe déjà
     if (userRepository.existsByMail(email)) {
       throw new BadRequestException("Email already exists");
-      // TODO: créer exceptions adaptées
     }
 
     // on vérifie si les deux mdp sont les mêmes
