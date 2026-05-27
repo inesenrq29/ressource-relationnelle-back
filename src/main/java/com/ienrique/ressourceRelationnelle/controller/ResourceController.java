@@ -34,24 +34,24 @@ public class ResourceController {
   }
 
   @GetMapping("/restricted")
-  @PreAuthorize("hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasAnyRole('USER', 'CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<List<ResourceDto>> getRestrictedResources() {
     final List<ResourceDto> response = resourceService.getRestrictedResources();
     return ResponseEntity.ok(response);
   }
 
   @PostMapping
-  @PreAuthorize("hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasAnyRole('USER', 'CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<ResourceDto> createResource(
-      @Valid @RequestBody final CreateResourceDto createResourceDto) {
+          @Valid @RequestBody final CreateResourceDto createResourceDto) {
     final ResourceDto response = resourceService.createResource(createResourceDto);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
   @PutMapping("/{resourceId}")
-  @PreAuthorize("hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasAnyRole('USER', 'CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<Void> updateResource(
-      @PathVariable final UUID resourceId, final @Valid @RequestBody UpdateResourceDto request) {
+          @PathVariable final UUID resourceId, final @Valid @RequestBody UpdateResourceDto request) {
     resourceService.updateResource(resourceId, request);
     return ResponseEntity.noContent().build();
   }
@@ -64,7 +64,7 @@ public class ResourceController {
   }
 
   @PatchMapping("/{resourceId}/submit")
-  @PreAuthorize("hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasAnyRole('USER', 'CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<Void> submitForValidation(@PathVariable final UUID resourceId) {
     resourceService.submitForValidation(resourceId);
     return ResponseEntity.noContent().build();
@@ -80,22 +80,22 @@ public class ResourceController {
   @PutMapping("/{resourceId}/status")
   @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Void> updateResourceStatus(
-      @PathVariable final UUID resourceId,
-      final @Valid @RequestBody UpdateResourceStatusDto request) {
+          @PathVariable final UUID resourceId,
+          final @Valid @RequestBody UpdateResourceStatusDto request) {
     resourceService.updateResourceStatus(resourceId, request);
     return ResponseEntity.noContent().build();
   }
 
   @GetMapping("/filter")
   public ResponseEntity<List<ResourceDto>> filterResources(
-      @RequestParam(required = false) final String filter) {
+          @RequestParam(required = false) final String filter) {
     return ResponseEntity.ok(resourceService.filterResources(filter));
   }
 
   @PostMapping("/{userId}/favorite/{resourceId}")
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> addResourceToFavorite(
-      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
     resourceService.addResourceToFavorite(userId, resourceId);
     return ResponseEntity.status(HttpStatus.CREATED).build();
   }
@@ -103,7 +103,7 @@ public class ResourceController {
   @DeleteMapping("/{userId}/favorite/{resourceId}")
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> removeResourceFromFavorite(
-      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
     resourceService.removeResourceFromFavorite(userId, resourceId);
     return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
   }
@@ -111,7 +111,7 @@ public class ResourceController {
   @PostMapping("/{userId}/set-aside/{resourceId}")
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> setAsideResource(
-      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
     resourceService.setAsideResource(userId, resourceId);
     return ResponseEntity.status(HttpStatus.CREATED).build();
   }
@@ -119,7 +119,7 @@ public class ResourceController {
   @DeleteMapping("/{userId}/set-aside/{resourceId}")
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> unsetAsideResource(
-      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
     resourceService.unsetAsideResource(userId, resourceId);
     return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
   }
@@ -127,7 +127,7 @@ public class ResourceController {
   @PostMapping("/{userId}/exploited/{resourceId}")
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> markResourceAsExploited(
-      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
     resourceService.markResourceAsExploited(userId, resourceId);
     return ResponseEntity.status(HttpStatus.CREATED).build();
   }
@@ -135,7 +135,7 @@ public class ResourceController {
   @DeleteMapping("/{userId}/exploited/{resourceId}")
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> markResourceAsUnexploited(
-      @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
     resourceService.markResourceAsUnexploited(userId, resourceId);
     return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
   }
@@ -148,25 +148,24 @@ public class ResourceController {
 
   @GetMapping("/sorted")
   public ResponseEntity<List<ResourceDto>> sortResources(
-      @RequestParam(defaultValue = "false") final boolean isAscending) {
+          @RequestParam(defaultValue = "false") final boolean isAscending) {
     return ResponseEntity.ok(resourceService.sortResources(isAscending));
   }
 
   @PostMapping("/{resourceId}/share/{friendId}")
-  @PreAuthorize("hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasAnyRole('USER', 'CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<Void> shareResource(
-      @PathVariable final UUID resourceId,
-      @PathVariable final UUID friendId,
-      @RequestBody @Valid final ShareResourceRequestDto request) {
-
+          @PathVariable final UUID resourceId,
+          @PathVariable final UUID friendId,
+          @RequestBody @Valid final ShareResourceRequestDto request) {
     resourceService.shareResource(resourceId, friendId, request);
     return ResponseEntity.status(HttpStatus.CREATED).build();
   }
 
   @GetMapping("/shares/{sharedResourceId}")
-  @PreAuthorize("hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasAnyRole('USER', 'CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<SharedResourceDto> getSharedResource(
-      @PathVariable final UUID sharedResourceId) {
+          @PathVariable final UUID sharedResourceId) {
     return ResponseEntity.ok(resourceService.getSharedResource(sharedResourceId));
   }
 }

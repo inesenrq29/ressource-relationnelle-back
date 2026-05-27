@@ -38,6 +38,7 @@ public class ResourceServiceImpl implements ResourceService {
   private final UserService userService;
 
   @Override
+  @Transactional(readOnly = true)
   public ResourceDto getResourceById(UUID resourceId) {
     final Resource resource =
         resourceRepository
