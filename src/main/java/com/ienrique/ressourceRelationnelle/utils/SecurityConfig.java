@@ -52,7 +52,7 @@ public class SecurityConfig {
 
   @Bean
   public PasswordEncoder passwordEncoder() {
-    // encode les mdp avec l'algorithme BCrypt
+    // encode password with BCrypt algorithm
     return new BCryptPasswordEncoder();
   }
 
@@ -60,13 +60,13 @@ public class SecurityConfig {
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http.csrf(
             AbstractHttpConfigurer
-                ::disable) // désactive la protection CSRF (inutile avec JWT car pas de cookies)
+                ::disable) // disable CSRF protection (useless with JWT cause no cookies)
         .sessionManagement(
             sm ->
                 sm.sessionCreationPolicy(
                     SessionCreationPolicy
-                        .STATELESS)) // API stateless : aucune session n'est stockée côté serveur,
-        // tout est dans le JWT
+                        .STATELESS)) // API stateless : no stcoked session in servor, all is in the
+        // JWT
         .authorizeHttpRequests(
             auth ->
                 auth.requestMatchers("/api/auth/**")
@@ -79,23 +79,21 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**")
                     .permitAll()
                     .anyRequest()
-                    .authenticated()) // toutes les autres requêtes nécessitent une authentification
+                    .authenticated()) // other request need authent
         .oauth2ResourceServer(
             oauth2 ->
                 oauth2.jwt(
                     jwt ->
                         jwt.jwtAuthenticationConverter(
-                            jwtAuthenticationConverter()))); // vérifie le JWT et transforme le rôle
-    // pour Spring Security
-    return http.build(); // construit et retourne la configuration de sécurité
+                            jwtAuthenticationConverter()))); // verify JWT and transform role for
+    // spring security
+    return http.build(); // build and return security configuration
   }
 
   @Bean
   public JwtDecoder jwtDecoder(@Value("${security.jwt.secret}") String secret) {
     final SecretKeySpec key =
-        new SecretKeySpec(
-            secret.getBytes(),
-            "HmacSHA256"); // crée une clé secrète à partir de la valeur dans yaml
-    return NimbusJwtDecoder.withSecretKey(key).build(); // décode les JWT signés avec HMAC SHA256
+        new SecretKeySpec(secret.getBytes(), "HmacSHA256"); // create secret key from yaml value
+    return NimbusJwtDecoder.withSecretKey(key).build(); // decode signed JWT with HMAC SHA256
   }
 }
