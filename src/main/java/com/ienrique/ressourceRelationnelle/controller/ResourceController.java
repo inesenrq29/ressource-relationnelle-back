@@ -49,7 +49,7 @@ public class ResourceController {
   }
 
   @PutMapping("/{resourceId}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<Void> updateResource(
       @PathVariable final UUID resourceId, @Valid @RequestBody final UpdateResourceDto request) {
     resourceService.updateResource(resourceId, request);

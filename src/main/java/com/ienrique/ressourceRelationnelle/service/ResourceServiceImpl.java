@@ -77,12 +77,14 @@ public class ResourceServiceImpl implements ResourceService {
     resource.setStatus(ResourceStatus.DRAFT);
 
     // Associe le créateur à partir de l'utilisateur connecté
-    try {
-      final UserDto currentUser = userService.getCurrentUser();
-      userRepository.findById(currentUser.getAppUserId()).ifPresent(resource::setCreator);
-    } catch (final Exception ignored) {
-      // si pas d'utilisateur connecté (contexte test, etc.) on laisse null
-    }
+    final UserDto currentUser = userService.getCurrentUser();
+
+    final AppUser creator =
+        userRepository
+            .findById(currentUser.getAppUserId())
+            .orElseThrow(() -> new NotFoundException("Current user not found"));
+
+    resource.setCreator(creator);
 
     if (createResource.getTags() != null && !createResource.getTags().isEmpty()) {
       final Set<Tag> tags =
