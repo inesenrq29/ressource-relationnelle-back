@@ -138,6 +138,10 @@ public class ResourceServiceImpl implements ResourceService {
     resource.setResourceType(updateResource.getResourceType());
     resource.setCategory(category);
 
+    if (!isAdmin && isCreator) {
+      resource.setStatus(ResourceStatus.DRAFT);
+    }
+
     if (updateResource.getTags() != null) {
       final Set<Tag> tags =
           updateResource.getTags().stream()
