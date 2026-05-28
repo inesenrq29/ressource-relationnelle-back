@@ -1,5 +1,7 @@
 package com.ienrique.ressourceRelationnelle.mapper;
 
+import java.util.List;
+
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -10,6 +12,8 @@ import com.ienrique.ressourceRelationnelle.entity.Comments;
 public interface CommentsMapper {
   @Mapping(target = "resourceId", source = "resource.resourceId")
   CommentDto toDto(Comments comments);
+
+  List<CommentDto> toDtos(List<Comments> comments);
 
   @Mapping(target = "parentComment", ignore = true)
   @Mapping(target = "resource", ignore = true)

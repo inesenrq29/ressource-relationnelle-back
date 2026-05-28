@@ -1,6 +1,7 @@
 package com.ienrique.ressourceRelationnelle.service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -30,6 +31,11 @@ public class CommentaryServiceImpl implements CommentaryService {
   private final ResourceRepository resourceRepository;
   private final AppUserRepository userRepository;
   private final CommentsMapper commentsMapper;
+
+  @Override
+  public List<CommentDto> getCommentsByResourceId(UUID resourceId) {
+    return commentsMapper.toDtos(commentsRepository.findByResourceResourceId(resourceId));
+  }
 
   @Override
   public CommentDto addComment(UUID userId, UUID resourceId, CreateCommentDto createCommentDto) {
