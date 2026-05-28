@@ -22,7 +22,7 @@ public class CommentaryController {
 
   @PostMapping("/{userId}/resources/{resourceId}")
   @PreAuthorize(
-      "hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN') "
+      "hasAnyRole('USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN') "
           + "and (#userId.toString() == principal.subject)")
   public ResponseEntity<CommentDto> addComment(
       final @PathVariable UUID userId,
@@ -36,7 +36,7 @@ public class CommentaryController {
 
   @PostMapping("/{userId}/resources/{resourceId}/{commentsId}/reply")
   @PreAuthorize(
-      "hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN') "
+      "hasAnyRole('USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN') "
           + "and (#userId.toString() == principal.subject)")
   public ResponseEntity<CommentDto> respondToComment(
       final @PathVariable UUID userId,

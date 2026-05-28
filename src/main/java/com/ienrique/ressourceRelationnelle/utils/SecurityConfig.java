@@ -69,17 +69,17 @@ public class SecurityConfig {
         // tout est dans le JWT
         .authorizeHttpRequests(
             auth ->
-                    auth.requestMatchers("/api/auth/**")
-                            .permitAll()
-                            .requestMatchers(
-                                    HttpMethod.POST, "/api/password/reset-request", "/api/password/reset")
-                            .permitAll()
-                            .requestMatchers(HttpMethod.GET, "/api/resources", "/api/resources/**")
-                            .permitAll()
-                            .requestMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**")
-                            .permitAll()
-                            .anyRequest()
-                            .authenticated()) // toutes les autres requêtes nécessitent une authentification
+                auth.requestMatchers("/api/auth/**")
+                    .permitAll()
+                    .requestMatchers(
+                        HttpMethod.POST, "/api/password/reset-request", "/api/password/reset")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/resources", "/api/resources/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**")
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated()) // toutes les autres requêtes nécessitent une authentification
         .oauth2ResourceServer(
             oauth2 ->
                 oauth2.jwt(

@@ -73,7 +73,7 @@ public class UserController {
   }
 
   @GetMapping("/me")
-  @PreAuthorize("hasAnyRole('CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasAnyRole('USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<UserDto> getCurrentUser() {
     final UserDto currentUser = userService.getCurrentUser();
     return ResponseEntity.ok(currentUser);

@@ -49,9 +49,9 @@ public class Resource {
 
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
-          name = "Resource_Tag",
-          joinColumns = @JoinColumn(name = "resourceId"),
-          inverseJoinColumns = @JoinColumn(name = "tagId"))
+      name = "Resource_Tag",
+      joinColumns = @JoinColumn(name = "resourceId"),
+      inverseJoinColumns = @JoinColumn(name = "tagId"))
   private Set<Tag> tags = new HashSet<>();
 
   @ManyToOne(fetch = FetchType.LAZY)

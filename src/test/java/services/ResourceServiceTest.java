@@ -23,6 +23,7 @@ import org.springframework.data.jpa.domain.Specification;
 import com.ienrique.ressourceRelationnelle.dto.*;
 import com.ienrique.ressourceRelationnelle.entity.*;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
+import com.ienrique.ressourceRelationnelle.exception.ForbiddenException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
 import com.ienrique.ressourceRelationnelle.mapper.ResourceMapper;
 import com.ienrique.ressourceRelationnelle.mapper.ShareResourceMapper;
@@ -48,6 +49,23 @@ public class ResourceServiceTest {
 
   @InjectMocks private ResourceServiceImpl resourceService;
 
+  private AppUser buildAppUser(final UUID userId) {
+    final AppUser user = new AppUser();
+    user.setAppUserId(userId);
+    return user;
+  }
+
+  private UserDto buildCurrentUser(final UUID userId, final String roleName) {
+    final RoleDto roleDto = new RoleDto();
+    roleDto.setRoleName(roleName);
+
+    final UserDto userDto = new UserDto();
+    userDto.setAppUserId(userId);
+    userDto.setRole(roleDto);
+
+    return userDto;
+  }
+
   @Nested
   @DisplayName("get resource by id")
   class GetResourceById {
@@ -55,8 +73,8 @@ public class ResourceServiceTest {
     @Test
     @DisplayName("should return resource by id")
     void shouldReturnResourceById() {
-      final Resource resource = new Resource();
       final UUID resourceId = UUID.randomUUID();
+      final Resource resource = new Resource();
       final ResourceDto expectedDto = new ResourceDto();
 
       when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
@@ -65,6 +83,8 @@ public class ResourceServiceTest {
       final ResourceDto response = resourceService.getResourceById(resourceId);
 
       assertEquals(expectedDto, response);
+      verify(resourceRepository).findByResourceId(resourceId);
+      verify(resourceMapper).toDto(resource);
     }
 
     @Test
@@ -78,6 +98,7 @@ public class ResourceServiceTest {
           assertThrows(NotFoundException.class, () -> resourceService.getResourceById(resourceId));
 
       assertEquals("Resource not found", exception.getMessage());
+      verify(resourceMapper, never()).toDto(any());
     }
   }
 
@@ -90,6 +111,7 @@ public class ResourceServiceTest {
     void shouldReturnResources() {
       final Resource resource1 = new Resource();
       final Resource resource2 = new Resource();
+
       final ResourceDto resourceDto1 = new ResourceDto();
       final ResourceDto resourceDto2 = new ResourceDto();
 
@@ -100,8 +122,12 @@ public class ResourceServiceTest {
       final List<ResourceDto> resources = resourceService.getResources();
 
       assertEquals(2, resources.size());
-      assertEquals(resourceDto1, resources.getFirst());
+      assertEquals(resourceDto1, resources.get(0));
       assertEquals(resourceDto2, resources.get(1));
+
+      verify(resourceRepository).findAll();
+      verify(resourceMapper).toDto(resource1);
+      verify(resourceMapper).toDto(resource2);
     }
   }
 
@@ -114,6 +140,7 @@ public class ResourceServiceTest {
     void shouldReturnAllRestrictedResources() {
       final Resource resource1 = new Resource();
       final Resource resource2 = new Resource();
+
       final ResourceDto resourceDto1 = new ResourceDto();
       final ResourceDto resourceDto2 = new ResourceDto();
 
@@ -125,8 +152,12 @@ public class ResourceServiceTest {
       final List<ResourceDto> resources = resourceService.getRestrictedResources();
 
       assertEquals(2, resources.size());
-      assertEquals(resourceDto1, resources.getFirst());
+      assertEquals(resourceDto1, resources.get(0));
       assertEquals(resourceDto2, resources.get(1));
+
+      verify(resourceRepository).findAllByStatus(ResourceStatus.RESTRICTED);
+      verify(resourceMapper).toDto(resource1);
+      verify(resourceMapper).toDto(resource2);
     }
   }
 
@@ -138,6 +169,8 @@ public class ResourceServiceTest {
     @DisplayName("should create resource")
     void shouldCreateResource() {
       final UUID categoryId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
       final CreateResourceDto createResource = new CreateResourceDto();
       createResource.setCategoryId(categoryId);
       createResource.setResourceTitle("resource title");
@@ -146,8 +179,13 @@ public class ResourceServiceTest {
 
       final Category category = new Category();
       category.setCategoryId(categoryId);
+
+      final AppUser currentUser = buildAppUser(currentUserId);
+      final UserDto currentUserDto = buildCurrentUser(currentUserId, "USER");
+
       final Tag tag1 = new Tag();
       tag1.setWording("tag1");
+
       final Tag tag2 = new Tag();
       tag2.setWording("tag2");
 
@@ -155,6 +193,8 @@ public class ResourceServiceTest {
       final ResourceDto expectedDto = new ResourceDto();
 
       when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+      when(userService.getCurrentUser()).thenReturn(currentUserDto);
+      when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
       when(tagRepository.findByWording("tag1")).thenReturn(Optional.of(tag1));
       when(tagRepository.findByWording("tag2")).thenReturn(Optional.of(tag2));
       when(resourceRepository.save(any(Resource.class))).thenReturn(savedResource);
@@ -163,7 +203,10 @@ public class ResourceServiceTest {
       final ResourceDto result = resourceService.createResource(createResource);
 
       assertEquals(expectedDto, result);
+
       verify(categoryRepository).findById(categoryId);
+      verify(userService).getCurrentUser();
+      verify(userRepository).findById(currentUserId);
       verify(tagRepository).findByWording("tag1");
       verify(tagRepository).findByWording("tag2");
       verify(resourceRepository).save(any(Resource.class));
@@ -174,6 +217,7 @@ public class ResourceServiceTest {
     @DisplayName("should throw category not found")
     void shouldThrowCategoryNotFound() {
       final UUID categoryId = UUID.randomUUID();
+
       final CreateResourceDto createResource = new CreateResourceDto();
       createResource.setCategoryId(categoryId);
 
@@ -184,6 +228,9 @@ public class ResourceServiceTest {
               NotFoundException.class, () -> resourceService.createResource(createResource));
 
       assertEquals("Category not found", exception.getMessage());
+
+      verify(resourceRepository, never()).save(any());
+      verify(resourceMapper, never()).toDto(any());
     }
   }
 
@@ -195,20 +242,22 @@ public class ResourceServiceTest {
     @DisplayName("should delete resource")
     void shouldDeleteResource() {
       final UUID resourceId = UUID.randomUUID();
+
       final Resource resource = new Resource();
       resource.setResourceId(resourceId);
 
       when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
 
       resourceService.deleteResource(resourceId);
+
+      verify(resourceRepository).findByResourceId(resourceId);
+      verify(resourceRepository).delete(resource);
     }
 
     @Test
     @DisplayName("should throw resource not found")
     void shouldThrowResourceNotFound() {
       final UUID resourceId = UUID.randomUUID();
-      final Resource resource = new Resource();
-      resource.setResourceId(resourceId);
 
       when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.empty());
 
@@ -216,6 +265,8 @@ public class ResourceServiceTest {
           assertThrows(NotFoundException.class, () -> resourceService.deleteResource(resourceId));
 
       assertEquals("Resource not found", exception.getMessage());
+
+      verify(resourceRepository, never()).save(any());
     }
   }
 
@@ -224,28 +275,35 @@ public class ResourceServiceTest {
   class SubmitForValidation {
 
     @Test
-    @DisplayName("should submit resource for validation")
-    void shouldSubmitForValidation() {
+    @DisplayName("should submit draft resource for validation")
+    void shouldSubmitDraftResourceForValidation() {
       final UUID resourceId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
+      final AppUser creator = buildAppUser(currentUserId);
+
       final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
       resource.setStatus(ResourceStatus.DRAFT);
+      resource.setCreator(creator);
+
+      final UserDto currentUser = buildCurrentUser(currentUserId, "USER");
 
       when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
-
-      final Resource validatedResource = new Resource();
-      validatedResource.setStatus(ResourceStatus.PENDING_VALIDATION);
-
-      resourceRepository.save(validatedResource);
+      when(userService.getCurrentUser()).thenReturn(currentUser);
 
       resourceService.submitForValidation(resourceId);
+
+      assertEquals(ResourceStatus.PENDING_VALIDATION, resource.getStatus());
+      verify(resourceRepository).findByResourceId(resourceId);
+      verify(userService).getCurrentUser();
+      verify(resourceRepository).save(resource);
     }
 
     @Test
     @DisplayName("should throw resource not found")
     void shouldThrowResourceNotFound() {
       final UUID resourceId = UUID.randomUUID();
-      final Resource resource = new Resource();
-      resource.setStatus(ResourceStatus.DRAFT);
 
       when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.empty());
 
@@ -254,22 +312,32 @@ public class ResourceServiceTest {
               NotFoundException.class, () -> resourceService.submitForValidation(resourceId));
 
       assertEquals("Resource not found", exception.getMessage());
+
+      verify(resourceRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("should throw bad request")
-    void shouldThrowBadRequest() {
+    @DisplayName("should throw bad request when resource is archived")
+    void shouldThrowBadRequestWhenArchived() {
       final UUID resourceId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
       final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
       resource.setStatus(ResourceStatus.ARCHIVED);
 
+      final UserDto currentUser = buildCurrentUser(currentUserId, "ADMIN");
+
       when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
 
       final BadRequestException exception =
           assertThrows(
               BadRequestException.class, () -> resourceService.submitForValidation(resourceId));
 
       assertEquals("Archived resource cannot be modified", exception.getMessage());
+
+      verify(resourceRepository, never()).save(any());
     }
   }
 
@@ -278,26 +346,75 @@ public class ResourceServiceTest {
   class UpdateResourceStatus {
 
     @Test
-    @DisplayName("should update resource status")
-    void shouldUpdateResourceStatus() {
+    @DisplayName("should update restricted resource to published")
+    void shouldUpdateRestrictedResourceToPublished() {
       final UUID resourceId = UUID.randomUUID();
+
       final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
       resource.setStatus(ResourceStatus.RESTRICTED);
+
       final UpdateResourceStatusDto status = new UpdateResourceStatusDto();
       status.setStatus(ResourceStatus.PUBLISHED);
 
       when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+
       resourceService.updateResourceStatus(resourceId, status);
 
-      resourceRepository.save(resource);
+      assertEquals(ResourceStatus.PUBLISHED, resource.getStatus());
+      verify(resourceRepository).findByResourceId(resourceId);
+      verify(resourceRepository).save(resource);
     }
 
     @Test
-    @DisplayName("should throw bad request published status")
+    @DisplayName("should update pending validation resource to restricted")
+    void shouldUpdatePendingValidationResourceToRestricted() {
+      final UUID resourceId = UUID.randomUUID();
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+      resource.setStatus(ResourceStatus.PENDING_VALIDATION);
+
+      final UpdateResourceStatusDto status = new UpdateResourceStatusDto();
+      status.setStatus(ResourceStatus.RESTRICTED);
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+
+      resourceService.updateResourceStatus(resourceId, status);
+
+      assertEquals(ResourceStatus.RESTRICTED, resource.getStatus());
+      verify(resourceRepository).save(resource);
+    }
+
+    @Test
+    @DisplayName("should throw resource not found")
+    void shouldThrowResourceNotFound() {
+      final UUID resourceId = UUID.randomUUID();
+
+      final UpdateResourceStatusDto status = new UpdateResourceStatusDto();
+      status.setStatus(ResourceStatus.PUBLISHED);
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.empty());
+
+      final NotFoundException exception =
+          assertThrows(
+              NotFoundException.class,
+              () -> resourceService.updateResourceStatus(resourceId, status));
+
+      assertEquals("Resource not found", exception.getMessage());
+
+      verify(resourceRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should throw bad request when published goes to draft")
     void shouldThrowBadRequestPublishedStatus() {
       final UUID resourceId = UUID.randomUUID();
+
       final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
       resource.setStatus(ResourceStatus.PUBLISHED);
+
       final UpdateResourceStatusDto status = new UpdateResourceStatusDto();
       status.setStatus(ResourceStatus.DRAFT);
 
@@ -309,14 +426,19 @@ public class ResourceServiceTest {
               () -> resourceService.updateResourceStatus(resourceId, status));
 
       assertEquals("Published can only be archived or restricted", exception.getMessage());
+
+      verify(resourceRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("should throw bad request restricted status")
+    @DisplayName("should throw bad request when restricted goes to draft")
     void shouldThrowBadRequestRestrictedStatus() {
       final UUID resourceId = UUID.randomUUID();
+
       final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
       resource.setStatus(ResourceStatus.RESTRICTED);
+
       final UpdateResourceStatusDto status = new UpdateResourceStatusDto();
       status.setStatus(ResourceStatus.DRAFT);
 
@@ -328,14 +450,19 @@ public class ResourceServiceTest {
               () -> resourceService.updateResourceStatus(resourceId, status));
 
       assertEquals("Restricted can only go to published or archived", exception.getMessage());
+
+      verify(resourceRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("should throw bad request pending validation status")
+    @DisplayName("should throw bad request when pending validation goes to archived")
     void shouldThrowBadRequestPendingValidationStatus() {
       final UUID resourceId = UUID.randomUUID();
+
       final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
       resource.setStatus(ResourceStatus.PENDING_VALIDATION);
+
       final UpdateResourceStatusDto status = new UpdateResourceStatusDto();
       status.setStatus(ResourceStatus.ARCHIVED);
 
@@ -348,6 +475,8 @@ public class ResourceServiceTest {
 
       assertEquals(
           "Pending validation can only be published or restricted", exception.getMessage());
+
+      verify(resourceRepository, never()).save(any());
     }
   }
 
@@ -356,19 +485,28 @@ public class ResourceServiceTest {
   class UpdateResource {
 
     @Test
-    @DisplayName("should update resource")
-    void shouldUpdateResource() {
+    @DisplayName("should update resource when current user is owner")
+    void shouldUpdateResourceWhenCurrentUserIsOwner() {
       final UUID resourceId = UUID.randomUUID();
       final UUID categoryId = UUID.randomUUID();
-      final Category category = new Category();
-      category.setCategoryId(categoryId);
+      final UUID currentUserId = UUID.randomUUID();
+
+      final AppUser owner = buildAppUser(currentUserId);
+
       final Resource resource = new Resource();
       resource.setResourceId(resourceId);
+      resource.setCreator(owner);
+
+      final Category category = new Category();
+      category.setCategoryId(categoryId);
 
       final Tag tag1 = new Tag();
       tag1.setWording("tag1");
+
       final Tag tag2 = new Tag();
       tag2.setWording("tag2");
+
+      final UserDto currentUser = buildCurrentUser(currentUserId, "USER");
 
       final UpdateResourceDto updateResourceDto = new UpdateResourceDto();
       updateResourceDto.setCategoryId(categoryId);
@@ -376,28 +514,115 @@ public class ResourceServiceTest {
       updateResourceDto.setResourceTitle("title updated");
       updateResourceDto.setTags(List.of("tag1", "tag2"));
 
-      when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
       when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
       when(tagRepository.findByWording("tag1")).thenReturn(Optional.of(tag1));
       when(tagRepository.findByWording("tag2")).thenReturn(Optional.of(tag2));
 
       resourceService.updateResource(resourceId, updateResourceDto);
 
+      assertEquals("title updated", resource.getResourceTitle());
+      assertEquals("description updated", resource.getResourceDescription());
+      assertEquals(category, resource.getCategory());
+
+      verify(userService).getCurrentUser();
+      verify(resourceRepository).findByResourceId(resourceId);
       verify(categoryRepository).findById(categoryId);
       verify(tagRepository).findByWording("tag1");
       verify(tagRepository).findByWording("tag2");
-      verify(resourceRepository).save(any(Resource.class));
+      verify(resourceRepository).save(resource);
     }
 
     @Test
-    @DisplayName("Should throw category not found")
+    @DisplayName("should update resource when current user is admin")
+    void shouldUpdateResourceWhenCurrentUserIsAdmin() {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID categoryId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
+      final AppUser owner = buildAppUser(UUID.randomUUID());
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+      resource.setCreator(owner);
+
+      final Category category = new Category();
+      category.setCategoryId(categoryId);
+
+      final UserDto currentUser = buildCurrentUser(currentUserId, "ADMIN");
+
+      final UpdateResourceDto updateResourceDto = new UpdateResourceDto();
+      updateResourceDto.setCategoryId(categoryId);
+      updateResourceDto.setResourceDescription("description updated");
+      updateResourceDto.setResourceTitle("title updated");
+      updateResourceDto.setTags(List.of());
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+
+      resourceService.updateResource(resourceId, updateResourceDto);
+
+      assertEquals("title updated", resource.getResourceTitle());
+      assertEquals("description updated", resource.getResourceDescription());
+      assertEquals(category, resource.getCategory());
+
+      verify(resourceRepository).save(resource);
+    }
+
+    @Test
+    @DisplayName("should throw forbidden when current user is not owner")
+    void shouldThrowForbiddenWhenCurrentUserIsNotOwner() {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID categoryId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
+      final AppUser owner = buildAppUser(UUID.randomUUID());
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+      resource.setCreator(owner);
+
+      final UserDto currentUser = buildCurrentUser(currentUserId, "USER");
+
+      final UpdateResourceDto updateResourceDto = new UpdateResourceDto();
+      updateResourceDto.setCategoryId(categoryId);
+      updateResourceDto.setResourceDescription("description updated");
+      updateResourceDto.setResourceTitle("title updated");
+      updateResourceDto.setTags(List.of());
+
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+
+      assertThrows(
+          ForbiddenException.class,
+          () -> resourceService.updateResource(resourceId, updateResourceDto));
+
+      verify(categoryRepository, never()).findById(any());
+      verify(resourceRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should throw category not found")
     void shouldThrowCategoryNotFound() {
       final UUID resourceId = UUID.randomUUID();
       final UUID categoryId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
+      final AppUser owner = buildAppUser(currentUserId);
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+      resource.setCreator(owner);
+
+      final UserDto currentUser = buildCurrentUser(currentUserId, "USER");
 
       final UpdateResourceDto updateResourceDto = new UpdateResourceDto();
       updateResourceDto.setCategoryId(categoryId);
 
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
       when(categoryRepository.findById(categoryId)).thenReturn(Optional.empty());
 
       final NotFoundException exception =
@@ -407,22 +632,17 @@ public class ResourceServiceTest {
 
       assertEquals("Category not found", exception.getMessage());
 
-      verify(resourceRepository, never()).findByResourceId(any());
       verify(resourceRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("Should throw NotFoundException when resource not found")
+    @DisplayName("should throw NotFoundException when resource not found")
     void shouldThrowNotFoundExceptionWhenResourceNotFound() {
       final UUID resourceId = UUID.randomUUID();
-      final UUID categoryId = UUID.randomUUID();
 
       final UpdateResourceDto dto = new UpdateResourceDto();
-      dto.setCategoryId(categoryId);
+      dto.setCategoryId(UUID.randomUUID());
 
-      final Category category = new Category();
-
-      when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
       when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.empty());
 
       final NotFoundException exception =
@@ -431,12 +651,13 @@ public class ResourceServiceTest {
 
       assertEquals("Resource not found", exception.getMessage());
 
+      verify(categoryRepository, never()).findById(any());
       verify(resourceRepository, never()).save(any());
     }
   }
 
   @Nested
-  @DisplayName("filterResources")
+  @DisplayName("filter resources")
   class FilterResourcesTest {
 
     @Test
@@ -463,10 +684,10 @@ public class ResourceServiceTest {
         final List<ResourceDto> result = resourceService.filterResources(rsqlQuery);
 
         assertEquals(resourceDtos, result);
+
         mockedStatic.verify(() -> RSQLJPASupport.toSpecification(rsqlQuery));
         verify(resourceRepository).findAll(specification);
         verify(resourceMapper).toDtos(resources);
-        verifyNoMoreInteractions(resourceRepository, resourceMapper);
       }
     }
 
@@ -485,9 +706,9 @@ public class ResourceServiceTest {
       final List<ResourceDto> result = resourceService.filterResources(null);
 
       assertEquals(resourceDtos, result);
+
       verify(resourceRepository).findAll();
       verify(resourceMapper).toDtos(resources);
-      verifyNoMoreInteractions(resourceRepository, resourceMapper);
     }
 
     @Test
@@ -507,9 +728,9 @@ public class ResourceServiceTest {
       final List<ResourceDto> result = resourceService.filterResources(rsqlQuery);
 
       assertEquals(resourceDtos, result);
+
       verify(resourceRepository).findAll();
       verify(resourceMapper).toDtos(resources);
-      verifyNoMoreInteractions(resourceRepository, resourceMapper);
     }
 
     @Test
@@ -517,18 +738,75 @@ public class ResourceServiceTest {
     void shouldThrowBadRequestExceptionWhenRsqlQueryIsInvalid() {
       final String rsqlQuery = "resourceType=PDF";
 
-      try (MockedStatic<RSQLJPASupport> mockedStatic =
-          org.mockito.Mockito.mockStatic(RSQLJPASupport.class)) {
+      try (MockedStatic<RSQLJPASupport> mockedStatic = Mockito.mockStatic(RSQLJPASupport.class)) {
         mockedStatic
             .when(() -> RSQLJPASupport.toSpecification(rsqlQuery))
             .thenThrow(new RuntimeException());
 
-        org.junit.jupiter.api.Assertions.assertThrows(
-            com.ienrique.ressourceRelationnelle.exception.BadRequestException.class,
-            () -> resourceService.filterResources(rsqlQuery));
+        assertThrows(BadRequestException.class, () -> resourceService.filterResources(rsqlQuery));
 
         mockedStatic.verify(() -> RSQLJPASupport.toSpecification(rsqlQuery));
+        verify(resourceRepository, never()).findAll(any(Specification.class));
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("sort resources")
+  class SortResources {
+
+    @Test
+    @DisplayName("should sort resources in ascending order")
+    void shouldSortResourcesInAscendingOrder() {
+      final List<Resource> resources = List.of(new Resource(), new Resource());
+      final List<ResourceDto> resourceDtos = List.of(new ResourceDto(), new ResourceDto());
+
+      when(resourceRepository.findAll(Sort.by("resourceCreatedAt").ascending()))
+          .thenReturn(resources);
+      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
+
+      final List<ResourceDto> result = resourceService.sortResources(true);
+
+      assertEquals(resourceDtos, result);
+
+      verify(resourceRepository).findAll(Sort.by("resourceCreatedAt").ascending());
+      verify(resourceMapper).toDtos(resources);
+    }
+
+    @Test
+    @DisplayName("should sort resources in descending order")
+    void shouldSortResourcesInDescendingOrder() {
+      final List<Resource> resources = List.of(new Resource(), new Resource());
+      final List<ResourceDto> resourceDtos = List.of(new ResourceDto(), new ResourceDto());
+
+      when(resourceRepository.findAll(Sort.by("resourceCreatedAt").descending()))
+          .thenReturn(resources);
+      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
+
+      final List<ResourceDto> result = resourceService.sortResources(false);
+
+      assertEquals(resourceDtos, result);
+
+      verify(resourceRepository).findAll(Sort.by("resourceCreatedAt").descending());
+      verify(resourceMapper).toDtos(resources);
+    }
+
+    @Test
+    @DisplayName("should return empty list when no resources found")
+    void shouldReturnEmptyListWhenNoResourcesFound() {
+      final List<Resource> resources = List.of();
+      final List<ResourceDto> resourceDtos = List.of();
+
+      when(resourceRepository.findAll(Sort.by("resourceCreatedAt").descending()))
+          .thenReturn(resources);
+      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
+
+      final List<ResourceDto> result = resourceService.sortResources(false);
+
+      assertTrue(result.isEmpty());
+
+      verify(resourceRepository).findAll(Sort.by("resourceCreatedAt").descending());
+      verify(resourceMapper).toDtos(resources);
     }
   }
 
@@ -691,6 +969,170 @@ public class ResourceServiceTest {
 
       assertFalse(progression.isFavorite());
       assertTrue(progression.isSetAside());
+
+      verify(progressionRepository).save(progression);
+      verify(progressionRepository, never()).delete(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("set aside resource")
+  class SetAsideResource {
+
+    @Test
+    @DisplayName("should set aside resource when progression does not exist")
+    void shouldSetAsideResourceWhenProgressionDoesNotExist() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.empty());
+
+      resourceService.setAsideResource(userId, resourceId);
+
+      verify(progressionRepository)
+          .save(
+              argThat(
+                  progression ->
+                      progression.isSetAside()
+                          && progression.getAppUser().equals(user)
+                          && progression.getResource().equals(resource)));
+    }
+
+    @Test
+    @DisplayName("should set aside resource when progression exists")
+    void shouldSetAsideResourceWhenProgressionExists() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      final Progression progression = new Progression();
+      progression.setSetAside(false);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.setAsideResource(userId, resourceId);
+
+      assertTrue(progression.isSetAside());
+      verify(progressionRepository).save(progression);
+    }
+
+    @Test
+    @DisplayName("should throw exception when resource already set aside")
+    void shouldThrowWhenAlreadySetAside() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final AppUser user = new AppUser();
+      final Resource resource = new Resource();
+
+      final Progression progression = new Progression();
+      progression.setSetAside(true);
+
+      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      assertThrows(
+          BadRequestException.class, () -> resourceService.setAsideResource(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("unset aside resource")
+  class UnsetAsideResource {
+
+    @Test
+    @DisplayName("should throw when progression is not found while unsetting aside resource")
+    void shouldThrowWhenProgressionNotFoundWhileUnsettingAsideResource() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.empty());
+
+      assertThrows(
+          NotFoundException.class, () -> resourceService.unsetAsideResource(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+      verify(progressionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("should throw when resource is not set aside")
+    void shouldThrowWhenResourceIsNotSetAside() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setSetAside(false);
+      progression.setFavorite(false);
+      progression.setExploited(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      assertThrows(
+          BadRequestException.class, () -> resourceService.unsetAsideResource(userId, resourceId));
+
+      verify(progressionRepository, never()).save(any());
+      verify(progressionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("should delete progression when unsetting aside and no status remains true")
+    void shouldDeleteProgressionWhenUnsettingAsideAndNoStatusRemainsTrue() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setSetAside(true);
+      progression.setFavorite(false);
+      progression.setExploited(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.unsetAsideResource(userId, resourceId);
+
+      assertFalse(progression.isSetAside());
+
+      verify(progressionRepository).delete(progression);
+      verify(progressionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should save progression when unsetting aside and another status remains true")
+    void shouldSaveProgressionWhenUnsettingAsideAndAnotherStatusRemainsTrue() {
+      final UUID userId = UUID.randomUUID();
+      final UUID resourceId = UUID.randomUUID();
+
+      final Progression progression = new Progression();
+      progression.setSetAside(true);
+      progression.setFavorite(true);
+      progression.setExploited(false);
+
+      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
+          .thenReturn(Optional.of(progression));
+
+      resourceService.unsetAsideResource(userId, resourceId);
+
+      assertFalse(progression.isSetAside());
+      assertTrue(progression.isFavorite());
+
       verify(progressionRepository).save(progression);
       verify(progressionRepository, never()).delete(any());
     }
@@ -834,6 +1276,7 @@ public class ResourceServiceTest {
       resourceService.markResourceAsUnexploited(userId, resourceId);
 
       assertFalse(progression.isExploited());
+
       verify(progressionRepository).delete(progression);
       verify(progressionRepository, never()).save(any());
     }
@@ -857,167 +1300,7 @@ public class ResourceServiceTest {
 
       assertFalse(progression.isExploited());
       assertTrue(progression.isFavorite());
-      verify(progressionRepository).save(progression);
-      verify(progressionRepository, never()).delete(any());
-    }
-  }
 
-  @Nested
-  @DisplayName("set aside resource")
-  class SetAsideResource {
-
-    @Test
-    @DisplayName("should set aside resource when progression does not exist")
-    void shouldSetAsideResourceWhenProgressionDoesNotExist() {
-      final UUID userId = UUID.randomUUID();
-      final UUID resourceId = UUID.randomUUID();
-
-      final AppUser user = new AppUser();
-      final Resource resource = new Resource();
-
-      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
-      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
-          .thenReturn(Optional.empty());
-
-      resourceService.setAsideResource(userId, resourceId);
-
-      verify(progressionRepository)
-          .save(
-              argThat(
-                  progression ->
-                      progression.isSetAside()
-                          && progression.getAppUser().equals(user)
-                          && progression.getResource().equals(resource)));
-    }
-
-    @Test
-    @DisplayName("should set aside resource when progression exists")
-    void shouldSetAsideResourceWhenProgressionExists() {
-      final UUID userId = UUID.randomUUID();
-      final UUID resourceId = UUID.randomUUID();
-
-      final AppUser user = new AppUser();
-      final Resource resource = new Resource();
-
-      final Progression progression = new Progression();
-      progression.setSetAside(false);
-
-      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
-      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
-          .thenReturn(Optional.of(progression));
-
-      resourceService.setAsideResource(userId, resourceId);
-
-      assertTrue(progression.isSetAside());
-      verify(progressionRepository).save(progression);
-    }
-
-    @Test
-    @DisplayName("should throw exception when resource already set aside")
-    void shouldThrowWhenAlreadyExploited() {
-      final UUID userId = UUID.randomUUID();
-      final UUID resourceId = UUID.randomUUID();
-
-      final AppUser user = new AppUser();
-      final Resource resource = new Resource();
-
-      final Progression progression = new Progression();
-      progression.setSetAside(true);
-
-      when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
-      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
-          .thenReturn(Optional.of(progression));
-
-      assertThrows(
-          BadRequestException.class, () -> resourceService.setAsideResource(userId, resourceId));
-
-      verify(progressionRepository, never()).save(any());
-    }
-  }
-
-  @Nested
-  @DisplayName("unset aside resource")
-  class UnsetAsideResource {
-
-    @Test
-    @DisplayName("should throw when progression is not found while unsetting aside resource")
-    void shouldThrowWhenProgressionNotFoundWhileUnsettingAsideResource() {
-      final UUID userId = UUID.randomUUID();
-      final UUID resourceId = UUID.randomUUID();
-
-      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
-          .thenReturn(Optional.empty());
-
-      assertThrows(
-          NotFoundException.class, () -> resourceService.unsetAsideResource(userId, resourceId));
-
-      verify(progressionRepository, never()).save(any());
-      verify(progressionRepository, never()).delete(any());
-    }
-
-    @Test
-    @DisplayName("should throw when resource is not set aside")
-    void shouldThrowWhenResourceIsNotSetAside() {
-      final UUID userId = UUID.randomUUID();
-      final UUID resourceId = UUID.randomUUID();
-
-      final Progression progression = new Progression();
-      progression.setSetAside(false);
-      progression.setFavorite(false);
-      progression.setExploited(false);
-
-      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
-          .thenReturn(Optional.of(progression));
-
-      assertThrows(
-          BadRequestException.class, () -> resourceService.unsetAsideResource(userId, resourceId));
-
-      verify(progressionRepository, never()).save(any());
-      verify(progressionRepository, never()).delete(any());
-    }
-
-    @Test
-    @DisplayName("should delete progression when unsetting aside and no status remains true")
-    void shouldDeleteProgressionWhenUnsettingAsideAndNoStatusRemainsTrue() {
-      final UUID userId = UUID.randomUUID();
-      final UUID resourceId = UUID.randomUUID();
-
-      final Progression progression = new Progression();
-      progression.setSetAside(true);
-      progression.setFavorite(false);
-      progression.setExploited(false);
-
-      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
-          .thenReturn(Optional.of(progression));
-
-      resourceService.unsetAsideResource(userId, resourceId);
-
-      assertFalse(progression.isSetAside());
-      verify(progressionRepository).delete(progression);
-      verify(progressionRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("should save progression when unsetting aside and another status remains true")
-    void shouldSaveProgressionWhenUnsettingAsideAndAnotherStatusRemainsTrue() {
-      final UUID userId = UUID.randomUUID();
-      final UUID resourceId = UUID.randomUUID();
-
-      final Progression progression = new Progression();
-      progression.setSetAside(true);
-      progression.setFavorite(true);
-      progression.setExploited(false);
-
-      when(progressionRepository.findByAppUserAppUserIdAndResourceResourceId(userId, resourceId))
-          .thenReturn(Optional.of(progression));
-
-      resourceService.unsetAsideResource(userId, resourceId);
-
-      assertFalse(progression.isSetAside());
-      assertTrue(progression.isFavorite());
       verify(progressionRepository).save(progression);
       verify(progressionRepository, never()).delete(any());
     }
@@ -1067,67 +1350,11 @@ public class ResourceServiceTest {
   }
 
   @Nested
-  @DisplayName("sort resources")
-  class SortResources {
-
-    @Test
-    @DisplayName("should sort resources in ascending order")
-    void shouldSortResourcesInAscendingOrder() {
-      final List<Resource> resources = List.of(new Resource(), new Resource());
-      final List<ResourceDto> resourceDtos = List.of(new ResourceDto(), new ResourceDto());
-
-      when(resourceRepository.findAll(Sort.by("resourceCreatedAt").ascending()))
-          .thenReturn(resources);
-      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
-
-      final List<ResourceDto> result = resourceService.sortResources(true);
-
-      assertEquals(resourceDtos, result);
-      verify(resourceRepository).findAll(Sort.by("resourceCreatedAt").ascending());
-      verify(resourceMapper).toDtos(resources);
-    }
-
-    @Test
-    @DisplayName("should sort resources in descending order")
-    void shouldSortResourcesInDescendingOrder() {
-      final List<Resource> resources = List.of(new Resource(), new Resource());
-      final List<ResourceDto> resourceDtos = List.of(new ResourceDto(), new ResourceDto());
-
-      when(resourceRepository.findAll(Sort.by("resourceCreatedAt").descending()))
-          .thenReturn(resources);
-      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
-
-      final List<ResourceDto> result = resourceService.sortResources(false);
-
-      assertEquals(resourceDtos, result);
-      verify(resourceRepository).findAll(Sort.by("resourceCreatedAt").descending());
-      verify(resourceMapper).toDtos(resources);
-    }
-
-    @Test
-    @DisplayName("should return empty list when no resources found")
-    void shouldReturnEmptyListWhenNoResourcesFound() {
-      final List<Resource> resources = List.of();
-      final List<ResourceDto> resourceDtos = List.of();
-
-      when(resourceRepository.findAll(Sort.by("resourceCreatedAt").descending()))
-          .thenReturn(resources);
-      when(resourceMapper.toDtos(resources)).thenReturn(resourceDtos);
-
-      final List<ResourceDto> result = resourceService.sortResources(false);
-
-      assertEquals(resourceDtos, result);
-      verify(resourceRepository).findAll(Sort.by("resourceCreatedAt").descending());
-      verify(resourceMapper).toDtos(resources);
-    }
-  }
-
-  @Nested
   @DisplayName("share resource")
   class ShareResourceTest {
 
     @Test
-    @DisplayName("should share resource when current user is request")
+    @DisplayName("should share resource when current user is requester")
     void shouldShareResourceWhenCurrentUserIsRequester() {
       final UUID resourceId = UUID.randomUUID();
       final UUID friendId = UUID.randomUUID();
@@ -1160,7 +1387,58 @@ public class ResourceServiceTest {
 
       resourceService.shareResource(resourceId, friendId, request);
 
-      verify(shareResourceRepository).save(any(ShareResource.class));
+      verify(shareResourceRepository)
+          .save(
+              argThat(
+                  share ->
+                      share.getResource().equals(resource)
+                          && share.getSender().equals(sender)
+                          && share.getReceiver().equals(receiver)
+                          && "hello".equals(share.getMessage())));
+    }
+
+    @Test
+    @DisplayName("should share resource when current user is receiver")
+    void shouldShareResourceWhenCurrentUserIsReceiver() {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID friendId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+      final UUID requesterUserId = UUID.randomUUID();
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+
+      final AppUser requester = new AppUser();
+      requester.setAppUserId(requesterUserId);
+
+      final AppUser currentUserEntity = new AppUser();
+      currentUserEntity.setAppUserId(currentUserId);
+
+      final Friend friend = new Friend();
+      friend.setRequesterUser(requester);
+      friend.setReceiverUser(currentUserEntity);
+
+      final UserDto currentUser = new UserDto();
+      currentUser.setAppUserId(currentUserId);
+
+      final ShareResourceRequestDto request = new ShareResourceRequestDto();
+      request.setMessage("hello");
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(friendRepository.findById(friendId)).thenReturn(Optional.of(friend));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+      when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUserEntity));
+
+      resourceService.shareResource(resourceId, friendId, request);
+
+      verify(shareResourceRepository)
+          .save(
+              argThat(
+                  share ->
+                      share.getResource().equals(resource)
+                          && share.getSender().equals(currentUserEntity)
+                          && share.getReceiver().equals(requester)
+                          && "hello".equals(share.getMessage())));
     }
 
     @Test
@@ -1316,6 +1594,9 @@ public class ResourceServiceTest {
       final SharedResourceDto result = resourceService.getSharedResource(shareId);
 
       assertEquals(dto, result);
+
+      verify(shareResourceRepository).findById(shareId);
+      verify(userService).getCurrentUser();
       verify(shareResourceMapper).toDto(share);
     }
 
@@ -1332,6 +1613,7 @@ public class ResourceServiceTest {
       receiver.setAppUserId(userId);
 
       final ShareResource share = new ShareResource();
+      share.setShareResourceId(shareId);
       share.setSender(sender);
       share.setReceiver(receiver);
 
@@ -1347,6 +1629,7 @@ public class ResourceServiceTest {
       final SharedResourceDto result = resourceService.getSharedResource(shareId);
 
       assertEquals(dto, result);
+
       verify(shareResourceMapper).toDto(share);
     }
 
@@ -1359,6 +1642,7 @@ public class ResourceServiceTest {
 
       assertThrows(NotFoundException.class, () -> resourceService.getSharedResource(shareId));
 
+      verify(userService, never()).getCurrentUser();
       verify(shareResourceMapper, never()).toDto(any());
     }
 
@@ -1374,6 +1658,7 @@ public class ResourceServiceTest {
       receiver.setAppUserId(UUID.randomUUID());
 
       final ShareResource share = new ShareResource();
+      share.setShareResourceId(shareId);
       share.setSender(sender);
       share.setReceiver(receiver);
 
@@ -1386,6 +1671,73 @@ public class ResourceServiceTest {
       assertThrows(BadRequestException.class, () -> resourceService.getSharedResource(shareId));
 
       verify(shareResourceMapper, never()).toDto(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("validate resource")
+  class ValidateResource {
+
+    @Test
+    @DisplayName("should validate pending resource")
+    void shouldValidatePendingResource() {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+      resource.setStatus(ResourceStatus.PENDING_VALIDATION);
+
+      final UserDto currentUser = buildCurrentUser(currentUserId, "MODERATOR");
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+
+      resourceService.validateResource(resourceId);
+
+      assertEquals(ResourceStatus.PUBLISHED, resource.getStatus());
+      verify(resourceRepository).findByResourceId(resourceId);
+      verify(userService).getCurrentUser();
+      verify(resourceRepository).save(resource);
+    }
+
+    @Test
+    @DisplayName("should throw not found when resource does not exist")
+    void shouldThrowNotFoundWhenResourceDoesNotExist() {
+      final UUID resourceId = UUID.randomUUID();
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.empty());
+
+      final NotFoundException exception =
+          assertThrows(NotFoundException.class, () -> resourceService.validateResource(resourceId));
+
+      assertEquals("Resource not found", exception.getMessage());
+
+      verify(resourceRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should throw bad request when resource is not pending validation")
+    void shouldThrowBadRequestWhenResourceIsNotPendingValidation() {
+      final UUID resourceId = UUID.randomUUID();
+      final UUID currentUserId = UUID.randomUUID();
+
+      final Resource resource = new Resource();
+      resource.setResourceId(resourceId);
+      resource.setStatus(ResourceStatus.DRAFT);
+
+      final UserDto currentUser = buildCurrentUser(currentUserId, "MODERATOR");
+
+      when(resourceRepository.findByResourceId(resourceId)).thenReturn(Optional.of(resource));
+      when(userService.getCurrentUser()).thenReturn(currentUser);
+
+      final BadRequestException exception =
+          assertThrows(
+              BadRequestException.class, () -> resourceService.validateResource(resourceId));
+
+      assertEquals("Draft can only go to pending validation", exception.getMessage());
+
+      verify(resourceRepository, never()).save(any());
     }
   }
 }
