@@ -45,4 +45,6 @@ public class ResourceDto {
   private String categoryName;
 
   @NotNull private List<@NotBlank @Size(max = 140) String> tags;
+
+  private UUID creatorId;
 }

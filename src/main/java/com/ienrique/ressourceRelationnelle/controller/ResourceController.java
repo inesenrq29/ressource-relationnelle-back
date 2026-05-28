@@ -49,15 +49,16 @@ public class ResourceController {
   }
 
   @PutMapping("/{resourceId}")
-  @PreAuthorize("hasAnyRole('USER', 'CITIZEN', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<Void> updateResource(
-          @PathVariable final UUID resourceId, final @Valid @RequestBody UpdateResourceDto request) {
+          @PathVariable final UUID resourceId,
+          @Valid @RequestBody final UpdateResourceDto request) {
     resourceService.updateResource(resourceId, request);
     return ResponseEntity.noContent().build();
   }
 
   @DeleteMapping("/{resourceId}")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<Void> deleteResource(@PathVariable final UUID resourceId) {
     resourceService.deleteResource(resourceId);
     return ResponseEntity.noContent().build();
@@ -78,10 +79,10 @@ public class ResourceController {
   }
 
   @PutMapping("/{resourceId}/status")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<Void> updateResourceStatus(
           @PathVariable final UUID resourceId,
-          final @Valid @RequestBody UpdateResourceStatusDto request) {
+          @Valid @RequestBody final UpdateResourceStatusDto request) {
     resourceService.updateResourceStatus(resourceId, request);
     return ResponseEntity.noContent().build();
   }
@@ -93,55 +94,61 @@ public class ResourceController {
   }
 
   @PostMapping("/{userId}/favorite/{resourceId}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or #userId.toString() == authentication.name")
   public ResponseEntity<Void> addResourceToFavorite(
-          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId,
+          @PathVariable final UUID resourceId) {
     resourceService.addResourceToFavorite(userId, resourceId);
     return ResponseEntity.status(HttpStatus.CREATED).build();
   }
 
   @DeleteMapping("/{userId}/favorite/{resourceId}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or #userId.toString() == authentication.name")
   public ResponseEntity<Void> removeResourceFromFavorite(
-          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId,
+          @PathVariable final UUID resourceId) {
     resourceService.removeResourceFromFavorite(userId, resourceId);
     return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
   }
 
   @PostMapping("/{userId}/set-aside/{resourceId}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or #userId.toString() == authentication.name")
   public ResponseEntity<Void> setAsideResource(
-          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId,
+          @PathVariable final UUID resourceId) {
     resourceService.setAsideResource(userId, resourceId);
     return ResponseEntity.status(HttpStatus.CREATED).build();
   }
 
   @DeleteMapping("/{userId}/set-aside/{resourceId}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or #userId.toString() == authentication.name")
   public ResponseEntity<Void> unsetAsideResource(
-          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId,
+          @PathVariable final UUID resourceId) {
     resourceService.unsetAsideResource(userId, resourceId);
     return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
   }
 
   @PostMapping("/{userId}/exploited/{resourceId}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or #userId.toString() == authentication.name")
   public ResponseEntity<Void> markResourceAsExploited(
-          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId,
+          @PathVariable final UUID resourceId) {
     resourceService.markResourceAsExploited(userId, resourceId);
     return ResponseEntity.status(HttpStatus.CREATED).build();
   }
 
   @DeleteMapping("/{userId}/exploited/{resourceId}")
-  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or #userId.toString() == authentication.name")
   public ResponseEntity<Void> markResourceAsUnexploited(
-          @PathVariable final UUID userId, @PathVariable final UUID resourceId) {
+          @PathVariable final UUID userId,
+          @PathVariable final UUID resourceId) {
     resourceService.markResourceAsUnexploited(userId, resourceId);
     return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
   }
 
   @GetMapping("/{userId}/progressions")
-  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
+  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or #userId.toString() == authentication.name")
   public ResponseEntity<ProgressionDto> getProgression(@PathVariable final UUID userId) {
     return ResponseEntity.ok(resourceService.getProgression(userId));
   }

@@ -15,6 +15,7 @@ import com.ienrique.ressourceRelationnelle.dto.*;
 import com.ienrique.ressourceRelationnelle.entity.*;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
+import com.ienrique.ressourceRelationnelle.exception.ForbiddenException;
 import com.ienrique.ressourceRelationnelle.mapper.ResourceMapper;
 import com.ienrique.ressourceRelationnelle.mapper.ShareResourceMapper;
 import com.ienrique.ressourceRelationnelle.repository.*;
@@ -63,9 +64,9 @@ public class ResourceServiceImpl implements ResourceService {
   @Override
   public ResourceDto createResource(CreateResourceDto createResource) {
     final Category category =
-        categoryRepository
-            .findById(createResource.getCategoryId())
-            .orElseThrow(() -> new NotFoundException("Category not found"));
+            categoryRepository
+                    .findById(createResource.getCategoryId())
+                    .orElseThrow(() -> new NotFoundException("Category not found"));
 
     final Resource resource = new Resource();
     resource.setResourceTitle(createResource.getResourceTitle());
@@ -73,53 +74,64 @@ public class ResourceServiceImpl implements ResourceService {
     resource.setResourceIsActive(true);
     resource.setResourceType(createResource.getResourceType());
     resource.setCategory(category);
-
-    // par défaut on met en DRAFT
     resource.setStatus(ResourceStatus.DRAFT);
 
+    // Associe le créateur à partir de l'utilisateur connecté
+    try {
+      final UserDto currentUser = userService.getCurrentUser();
+      userRepository.findById(currentUser.getAppUserId()).ifPresent(resource::setCreator);
+    } catch (final Exception ignored) {
+      // si pas d'utilisateur connecté (contexte test, etc.) on laisse null
+    }
+
     if (createResource.getTags() != null && !createResource.getTags().isEmpty()) {
-      // récupération de la liste
       final Set<Tag> tags =
-          createResource.getTags().stream()
-              // suppression des espaces
-              .map(String::trim)
-              // suppression des tags vides
-              .filter(tagName -> !tagName.isBlank())
-              // récupération des tags déjà en base
-              .map(
-                  tagName ->
-                      tagRepository
-                          .findByWording(tagName)
-                          // s'il n'existe pas
-                          .orElseGet(
-                              () -> {
-                                // on le crée et on enregistre en base
-                                final Tag tag = new Tag();
-                                tag.setWording(tagName);
-                                return tagRepository.save(tag);
-                              }))
-              // on convertit en Set
-              .collect(Collectors.toSet());
+              createResource.getTags().stream()
+                      .map(String::trim)
+                      .filter(tagName -> !tagName.isBlank())
+                      .map(
+                              tagName ->
+                                      tagRepository
+                                              .findByWording(tagName)
+                                              .orElseGet(
+                                                      () -> {
+                                                        final Tag tag = new Tag();
+                                                        tag.setWording(tagName);
+                                                        return tagRepository.save(tag);
+                                                      }))
+                      .collect(Collectors.toSet());
 
       resource.setTags(tags);
     }
 
     final Resource savedResource = resourceRepository.save(resource);
-
     return resourceMapper.toDto(savedResource);
   }
 
   @Override
   public void updateResource(UUID resourceId, UpdateResourceDto updateResource) {
-    final Category category =
-        categoryRepository
-            .findById(updateResource.getCategoryId())
-            .orElseThrow(() -> new NotFoundException("Category not found"));
-
     final Resource resource =
-        resourceRepository
-            .findByResourceId(resourceId)
-            .orElseThrow(() -> new NotFoundException("Resource not found"));
+            resourceRepository
+                    .findByResourceId(resourceId)
+                    .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    // Vérification d'autorisation : créateur ou admin/super_admin
+    final UserDto currentUser = userService.getCurrentUser();
+    final String roleName = currentUser.getRole() != null
+            ? currentUser.getRole().getRoleName()
+            : "";
+    final boolean isAdmin = roleName.equals("ADMIN") || roleName.equals("SUPER_ADMIN");
+    final boolean isCreator = resource.getCreator() != null
+            && resource.getCreator().getAppUserId().equals(currentUser.getAppUserId());
+
+    if (!isAdmin && !isCreator) {
+      throw new ForbiddenException("Vous n'êtes pas autorisé à modifier cette ressource.");
+    }
+
+    final Category category =
+            categoryRepository
+                    .findById(updateResource.getCategoryId())
+                    .orElseThrow(() -> new NotFoundException("Category not found"));
 
     resource.setResourceTitle(updateResource.getResourceTitle());
     resource.setResourceDescription(updateResource.getResourceDescription());
@@ -128,20 +140,20 @@ public class ResourceServiceImpl implements ResourceService {
 
     if (updateResource.getTags() != null) {
       final Set<Tag> tags =
-          updateResource.getTags().stream()
-              .map(String::trim)
-              .filter(tagName -> !tagName.isBlank())
-              .map(
-                  tagName ->
-                      tagRepository
-                          .findByWording(tagName)
-                          .orElseGet(
-                              () -> {
-                                final Tag tag = new Tag();
-                                tag.setWording(tagName);
-                                return tagRepository.save(tag);
-                              }))
-              .collect(Collectors.toSet());
+              updateResource.getTags().stream()
+                      .map(String::trim)
+                      .filter(tagName -> !tagName.isBlank())
+                      .map(
+                              tagName ->
+                                      tagRepository
+                                              .findByWording(tagName)
+                                              .orElseGet(
+                                                      () -> {
+                                                        final Tag tag = new Tag();
+                                                        tag.setWording(tagName);
+                                                        return tagRepository.save(tag);
+                                                      }))
+                      .collect(Collectors.toSet());
 
       resource.setTags(tags);
     }

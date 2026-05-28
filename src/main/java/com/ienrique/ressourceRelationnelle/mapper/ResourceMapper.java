@@ -12,8 +12,10 @@ import com.ienrique.ressourceRelationnelle.entity.Tag;
 
 @Mapper(componentModel = "spring")
 public interface ResourceMapper {
+
   @Mapping(source = "category.categoryId", target = "categoryId")
   @Mapping(source = "category.name", target = "categoryName")
+  @Mapping(source = "creator.appUserId", target = "creatorId")
   ResourceDto toDto(Resource resource);
 
   List<ResourceDto> toDtos(List<Resource> resource);

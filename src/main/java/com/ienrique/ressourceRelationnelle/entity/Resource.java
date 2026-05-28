@@ -32,7 +32,7 @@ public class Resource {
   private UUID resourceId;
 
   @Column(name = "resourceIsActive", nullable = false)
-  private boolean resourceIsActive = true; // ressource activée ou désactivée
+  private boolean resourceIsActive = true;
 
   @Column(name = "resourceTitle", nullable = false)
   private String resourceTitle;
@@ -49,9 +49,9 @@ public class Resource {
 
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
-      name = "Resource_Tag",
-      joinColumns = @JoinColumn(name = "resourceId"),
-      inverseJoinColumns = @JoinColumn(name = "tagId"))
+          name = "Resource_Tag",
+          joinColumns = @JoinColumn(name = "resourceId"),
+          inverseJoinColumns = @JoinColumn(name = "tagId"))
   private Set<Tag> tags = new HashSet<>();
 
   @ManyToOne(fetch = FetchType.LAZY)
@@ -61,4 +61,8 @@ public class Resource {
   @Enumerated(EnumType.STRING)
   @Column(name = "resourceType", nullable = false)
   private ResourceType resourceType;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "creatorId")
+  private AppUser creator;
 }

@@ -29,3 +29,5 @@ databaseChangeLog:
       file: db/changelog/014_update_quiz_table.sql
   - include:
       file: db/changelog/015_update_activities_table.sql
+  - include:
+      file: db/changelog/016_add_creator_to_resource.sql
