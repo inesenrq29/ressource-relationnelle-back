@@ -38,22 +38,29 @@ public class CommentaryServiceImpl implements CommentaryService {
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public List<CommentDto> getCommentsForModeration(CommentStatus status) {
+    return commentsRepository.findAll().stream()
+            .filter(comment -> status == null || comment.getStatus() == status)
+            .map(commentsMapper::toDto)
+            .toList();
+  }
+
+  @Override
   public CommentDto addComment(UUID userId, UUID resourceId, CreateCommentDto createCommentDto) {
-    // vérifie si l'utilisateur existe
     final AppUser user =
-        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
-    // vérifie si la ressource existe
+            userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+
     final Resource resource =
-        resourceRepository
-            .findByResourceId(resourceId)
-            .orElseThrow(() -> new NotFoundException("Resource not found"));
-    // vérifie que le contenu du commentaire n'est ni nul ni vide
+            resourceRepository
+                    .findByResourceId(resourceId)
+                    .orElseThrow(() -> new NotFoundException("Resource not found"));
+
     if (createCommentDto.getCommentsContent() == null
-        || createCommentDto.getCommentsContent().isBlank()) {
+            || createCommentDto.getCommentsContent().isBlank()) {
       throw new BadRequestException("Comment content is required");
     }
 
-    // création du commentaire
     final Comments comment = new Comments();
 
     comment.setTitleComments(createCommentDto.getTitleComments());
@@ -63,7 +70,6 @@ public class CommentaryServiceImpl implements CommentaryService {
     comment.setPublicationDate(Instant.now());
     comment.setStatus(CommentStatus.PENDING);
 
-    // enregistrement en base
     final Comments savedComment = commentsRepository.save(comment);
 
     return commentsMapper.toDto(savedComment);
@@ -71,30 +77,30 @@ public class CommentaryServiceImpl implements CommentaryService {
 
   @Override
   public CommentDto respondToComment(
-      UUID userId, UUID resourceId, UUID commentsId, CreateCommentDto createCommentDto) {
-    // vérifie que le user existe
+          UUID userId, UUID resourceId, UUID commentsId, CreateCommentDto createCommentDto) {
+
     final AppUser user =
-        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
-    // vérifie que la ressource existe
+            userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+
     final Resource resource =
-        resourceRepository
-            .findByResourceId(resourceId)
-            .orElseThrow(() -> new NotFoundException("Resource not found"));
-    // vérifie que le commentaire de base existe
+            resourceRepository
+                    .findByResourceId(resourceId)
+                    .orElseThrow(() -> new NotFoundException("Resource not found"));
+
     final Comments parentComment =
-        commentsRepository
-            .findByCommentsId(commentsId)
-            .orElseThrow(() -> new NotFoundException("Comment not found"));
-    // la ressource liée à id parent doit être = resource id
+            commentsRepository
+                    .findByCommentsId(commentsId)
+                    .orElseThrow(() -> new NotFoundException("Comment not found"));
+
     if (!parentComment.getResource().getResourceId().equals(resourceId)) {
       throw new BadRequestException("Comment does not belong to this resource");
     }
-    // vérifie que le commentaire n'est ni vide ni nul
+
     if (createCommentDto.getCommentsContent() == null
-        || createCommentDto.getCommentsContent().isBlank()) {
+            || createCommentDto.getCommentsContent().isBlank()) {
       throw new BadRequestException("Comment content is required");
     }
-    // création du commentaire de réponse
+
     final Comments response = new Comments();
 
     response.setParentComment(parentComment);
@@ -105,7 +111,6 @@ public class CommentaryServiceImpl implements CommentaryService {
     response.setPublicationDate(Instant.now());
     response.setStatus(CommentStatus.PENDING);
 
-    // enregistrement en base
     final Comments savedResponse = commentsRepository.save(response);
 
     return commentsMapper.toDto(savedResponse);
@@ -114,36 +119,34 @@ public class CommentaryServiceImpl implements CommentaryService {
   @Override
   @Transactional
   public CommentDto moderateComment(UUID commentsId, ModerateCommentDto moderateCommentDto) {
-    // vérifie que le commentaire existe
     final Comments comment =
-        commentsRepository
-            .findByCommentsId(commentsId)
-            .orElseThrow(() -> new NotFoundException("Comment not found"));
+            commentsRepository
+                    .findByCommentsId(commentsId)
+                    .orElseThrow(() -> new NotFoundException("Comment not found"));
 
-    // vérifie que le statut est défini
     if (moderateCommentDto.getStatus() == null) {
       throw new BadRequestException("Comment status is required");
     }
 
-    // vérifie que le statut n'est pas PENDING
     if (moderateCommentDto.getStatus() == CommentStatus.PENDING) {
       throw new BadRequestException("Invalid moderation status");
     }
 
-    // vérifie que si le statut est REJECTED la raison soit renseignée
     if (moderateCommentDto.getStatus() == CommentStatus.REJECTED) {
       if (moderateCommentDto.getModerationReason() == null
-          || moderateCommentDto.getModerationReason().isBlank()) {
+              || moderateCommentDto.getModerationReason().isBlank()) {
         throw new BadRequestException("Moderation reason is required");
       }
-      // ajout de la raison de la modération
+
       comment.setModerationReason(moderateCommentDto.getModerationReason());
     } else {
-      // sinon le statut est APPROVED et donc pas de justification
       comment.setModerationReason(null);
     }
+
     comment.setStatus(moderateCommentDto.getStatus());
 
-    return commentsMapper.toDto(comment);
+    final Comments savedComment = commentsRepository.save(comment);
+
+    return commentsMapper.toDto(savedComment);
   }
 }
