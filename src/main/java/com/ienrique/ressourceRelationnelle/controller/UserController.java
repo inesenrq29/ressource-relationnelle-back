@@ -36,9 +36,11 @@ public class UserController {
   @DeleteMapping("/{userId}")
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> deleteAccount(
-      @PathVariable final UUID userId,
-      final @Valid @RequestBody DeleteAccountDto deleteAccountDto) {
+          @PathVariable final UUID userId,
+          final @Valid @RequestBody DeleteAccountDto deleteAccountDto) {
+
     userService.deleteAccount(userId, deleteAccountDto);
+
     return ResponseEntity.noContent().build();
   }
 
@@ -46,29 +48,37 @@ public class UserController {
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<UserDto> getUserById(@PathVariable final UUID userId) {
     final UserDto response = userService.getUserById(userId);
+
     return ResponseEntity.ok(response);
   }
 
   @PutMapping("/{userId}")
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> updateUser(
-      @PathVariable final UUID userId, final @Valid @RequestBody UpdateUserDto request) {
+          @PathVariable final UUID userId,
+          final @Valid @RequestBody UpdateUserDto request) {
+
     userService.updateUser(userId, request);
+
     return ResponseEntity.noContent().build();
   }
 
   @PatchMapping("/{userId}/status")
-  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasRole('SUPER_ADMIN')")
   public ResponseEntity<Void> updateUserStatus(
-      @PathVariable final UUID userId, final @RequestBody AccountStatus status) {
+          @PathVariable final UUID userId,
+          final @RequestBody AccountStatus status) {
+
     userService.updateUserStatus(userId, status);
+
     return ResponseEntity.noContent().build();
   }
 
   @GetMapping
-  @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+  @PreAuthorize("hasRole('SUPER_ADMIN')")
   public ResponseEntity<List<UserDto>> getAllUsers() {
     final List<UserDto> response = userService.getAllUsers();
+
     return ResponseEntity.ok(response);
   }
 
@@ -76,14 +86,17 @@ public class UserController {
   @PreAuthorize("hasAnyRole('USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<UserDto> getCurrentUser() {
     final UserDto currentUser = userService.getCurrentUser();
+
     return ResponseEntity.ok(currentUser);
   }
 
   @PostMapping("/with-role")
   @PreAuthorize("hasRole('SUPER_ADMIN')")
   public ResponseEntity<UserDto> createAccountWithRole(
-      final @RequestBody @Valid CreateAccountDto createAccountDto) {
+          final @RequestBody @Valid CreateAccountDto createAccountDto) {
+
     final UserDto createdUser = userService.createAccountWithRole(createAccountDto);
+
     return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
   }
 }
