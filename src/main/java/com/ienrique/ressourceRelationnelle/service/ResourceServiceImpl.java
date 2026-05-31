@@ -1,0 +1,553 @@
+package com.ienrique.ressourceRelationnelle.service;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ienrique.ressourceRelationnelle.dto.*;
+import com.ienrique.ressourceRelationnelle.entity.*;
+import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
+import com.ienrique.ressourceRelationnelle.exception.ForbiddenException;
+import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
+import com.ienrique.ressourceRelationnelle.mapper.ResourceMapper;
+import com.ienrique.ressourceRelationnelle.mapper.ShareResourceMapper;
+import com.ienrique.ressourceRelationnelle.repository.*;
+
+import io.github.perplexhub.rsql.RSQLJPASupport;
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class ResourceServiceImpl implements ResourceService {
+
+  private final ResourceRepository resourceRepository;
+  private final ShareResourceRepository shareResourceRepository;
+  private final FriendRepository friendRepository;
+  private final AppUserRepository userRepository;
+  private final ProgressionRepository progressionRepository;
+  private final CategoryRepository categoryRepository;
+  private final TagRepository tagRepository;
+  private final ResourceMapper resourceMapper;
+  private final ShareResourceMapper shareResourceMapper;
+  private final UserService userService;
+
+  @Override
+  @Transactional(readOnly = true)
+  public ResourceDto getResourceById(UUID resourceId) {
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    return resourceMapper.toDto(resource);
+  }
+
+  @Override
+  public List<ResourceDto> getResources() {
+    return resourceRepository.findAll().stream().map(resourceMapper::toDto).toList();
+  }
+
+  @Override
+  public List<ResourceDto> getRestrictedResources() {
+    final List<Resource> resources = resourceRepository.findAllByStatus(ResourceStatus.RESTRICTED);
+
+    return resources.stream().map(resourceMapper::toDto).toList();
+  }
+
+  @Override
+  public ResourceDto createResource(CreateResourceDto createResource) {
+    final Category category =
+        categoryRepository
+            .findById(createResource.getCategoryId())
+            .orElseThrow(() -> new NotFoundException("Category not found"));
+
+    final Resource resource = new Resource();
+    resource.setResourceTitle(createResource.getResourceTitle());
+    resource.setResourceDescription(createResource.getResourceDescription());
+    resource.setResourceIsActive(true);
+    resource.setResourceType(createResource.getResourceType());
+    resource.setCategory(category);
+    resource.setStatus(ResourceStatus.DRAFT);
+
+    // Associe le créateur à partir de l'utilisateur connecté
+    final UserDto currentUser = userService.getCurrentUser();
+
+    final AppUser creator =
+        userRepository
+            .findById(currentUser.getAppUserId())
+            .orElseThrow(() -> new NotFoundException("Current user not found"));
+
+    resource.setCreator(creator);
+
+    if (createResource.getTags() != null && !createResource.getTags().isEmpty()) {
+      final Set<Tag> tags =
+          createResource.getTags().stream()
+              .map(String::trim)
+              .filter(tagName -> !tagName.isBlank())
+              .map(
+                  tagName ->
+                      tagRepository
+                          .findByWording(tagName)
+                          .orElseGet(
+                              () -> {
+                                final Tag tag = new Tag();
+                                tag.setWording(tagName);
+                                return tagRepository.save(tag);
+                              }))
+              .collect(Collectors.toSet());
+
+      resource.setTags(tags);
+    }
+
+    final Resource savedResource = resourceRepository.save(resource);
+    return resourceMapper.toDto(savedResource);
+  }
+
+  @Override
+  public void updateResource(UUID resourceId, UpdateResourceDto updateResource) {
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    // Vérification d'autorisation : créateur ou admin/super_admin
+    final UserDto currentUser = userService.getCurrentUser();
+    final String roleName =
+        currentUser.getRole() != null ? currentUser.getRole().getRoleName() : "";
+    final boolean isAdmin = roleName.equals("ADMIN") || roleName.equals("SUPER_ADMIN");
+    final boolean isCreator =
+        resource.getCreator() != null
+            && resource.getCreator().getAppUserId().equals(currentUser.getAppUserId());
+
+    if (!isAdmin && !isCreator) {
+      throw new ForbiddenException("Vous n'êtes pas autorisé à modifier cette ressource.");
+    }
+
+    final Category category =
+        categoryRepository
+            .findById(updateResource.getCategoryId())
+            .orElseThrow(() -> new NotFoundException("Category not found"));
+
+    resource.setResourceTitle(updateResource.getResourceTitle());
+    resource.setResourceDescription(updateResource.getResourceDescription());
+    resource.setResourceType(updateResource.getResourceType());
+    resource.setCategory(category);
+
+    if (!isAdmin && isCreator) {
+      resource.setStatus(ResourceStatus.DRAFT);
+    }
+
+    if (updateResource.getTags() != null) {
+      final Set<Tag> tags =
+          updateResource.getTags().stream()
+              .map(String::trim)
+              .filter(tagName -> !tagName.isBlank())
+              .map(
+                  tagName ->
+                      tagRepository
+                          .findByWording(tagName)
+                          .orElseGet(
+                              () -> {
+                                final Tag tag = new Tag();
+                                tag.setWording(tagName);
+                                return tagRepository.save(tag);
+                              }))
+              .collect(Collectors.toSet());
+
+      resource.setTags(tags);
+    }
+
+    resourceRepository.save(resource);
+  }
+
+  @Override
+  public void deleteResource(UUID resourceId) {
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    resourceRepository.delete(resource);
+  }
+
+  @Override
+  public void submitForValidation(UUID resourceId) {
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final UserDto currentUser = userService.getCurrentUser();
+
+    final String roleName =
+        currentUser.getRole() != null ? currentUser.getRole().getRoleName() : "";
+
+    final boolean isAdmin = roleName.equals("ADMIN") || roleName.equals("SUPER_ADMIN");
+
+    final boolean isCreator =
+        resource.getCreator() != null
+            && resource.getCreator().getAppUserId().equals(currentUser.getAppUserId());
+
+    if (!isAdmin && !isCreator) {
+      throw new ForbiddenException("Vous n'êtes pas autorisé à soumettre cette ressource.");
+    }
+
+    validateStatusTransition(resource.getStatus(), ResourceStatus.PENDING_VALIDATION);
+
+    resource.setStatus(ResourceStatus.PENDING_VALIDATION);
+    resourceRepository.save(resource);
+  }
+
+  @Override
+  public void updateResourceStatus(UUID resourceId, UpdateResourceStatusDto status) {
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final ResourceStatus currentStatus = resource.getStatus();
+    final ResourceStatus newStatus = status.getStatus();
+
+    validateStatusTransition(currentStatus, newStatus);
+
+    resource.setStatus(newStatus);
+
+    resourceRepository.save(resource);
+  }
+
+  @Override
+  public List<ResourceDto> sortResources(boolean isAscending) {
+    final Sort sort =
+        isAscending
+            ? Sort.by("resourceCreatedAt").ascending()
+            : Sort.by("resourceCreatedAt").descending();
+
+    final List<Resource> resources = resourceRepository.findAll(sort);
+
+    return resourceMapper.toDtos(resources);
+  }
+
+  @Override
+  public List<ResourceDto> filterResources(String rsqlQuery) {
+    final List<Resource> resources;
+
+    try {
+      if (rsqlQuery != null && !rsqlQuery.trim().isEmpty()) {
+        final Specification<Resource> specification = RSQLJPASupport.toSpecification(rsqlQuery);
+        resources = resourceRepository.findAll(specification);
+      } else {
+        resources = resourceRepository.findAll();
+      }
+    } catch (final Exception e) {
+      throw new BadRequestException("Invalid filter query");
+    }
+
+    return resourceMapper.toDtos(resources);
+  }
+
+  @Override
+  @Transactional
+  public void addResourceToFavorite(UUID userId, UUID resourceId) {
+    final AppUser user =
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseGet(
+                () -> {
+                  final Progression newProgression = new Progression();
+                  newProgression.setAppUser(user);
+                  newProgression.setResource(resource);
+                  return newProgression;
+                });
+
+    if (progression.isFavorite()) {
+      throw new BadRequestException("Resource is already in favorites");
+    }
+
+    progression.setFavorite(true);
+
+    progressionRepository.save(progression);
+  }
+
+  @Override
+  @Transactional
+  public void removeResourceFromFavorite(UUID userId, UUID resourceId) {
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseThrow(() -> new NotFoundException("Progression not found"));
+
+    if (!progression.isFavorite()) {
+      throw new BadRequestException("Resource is not in favorites yet");
+    }
+
+    progression.setFavorite(false);
+
+    if (!progression.isFavorite() && !progression.isSetAside() && !progression.isExploited()) {
+      progressionRepository.delete(progression);
+    } else {
+      progressionRepository.save(progression);
+    }
+  }
+
+  @Override
+  @Transactional
+  public void setAsideResource(UUID userId, UUID resourceId) {
+    final AppUser user =
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseGet(
+                () -> {
+                  final Progression newProgression = new Progression();
+                  newProgression.setAppUser(user);
+                  newProgression.setResource(resource);
+                  return newProgression;
+                });
+
+    if (progression.isSetAside()) {
+      throw new BadRequestException("Resource is already set aside");
+    }
+
+    progression.setSetAside(true);
+
+    progressionRepository.save(progression);
+  }
+
+  @Override
+  @Transactional
+  public void unsetAsideResource(UUID userId, UUID resourceId) {
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseThrow(() -> new NotFoundException("Progression not found"));
+
+    if (!progression.isSetAside()) {
+      throw new BadRequestException("Resource is not set aside");
+    }
+
+    progression.setSetAside(false);
+
+    if (!progression.isFavorite() && !progression.isSetAside() && !progression.isExploited()) {
+      progressionRepository.delete(progression);
+    } else {
+      progressionRepository.save(progression);
+    }
+  }
+
+  @Override
+  @Transactional
+  public void markResourceAsExploited(UUID userId, UUID resourceId) {
+    final AppUser user =
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseGet(
+                () -> {
+                  final Progression newProgression = new Progression();
+                  newProgression.setAppUser(user);
+                  newProgression.setResource(resource);
+                  return newProgression;
+                });
+
+    if (progression.isExploited()) {
+      throw new BadRequestException("Resource has been already exploited");
+    }
+
+    progression.setExploited(true);
+    progression.setSetAside(false);
+
+    progressionRepository.save(progression);
+  }
+
+  @Override
+  @Transactional
+  public void markResourceAsUnexploited(UUID userId, UUID resourceId) {
+    final Progression progression =
+        progressionRepository
+            .findByAppUserAppUserIdAndResourceResourceId(userId, resourceId)
+            .orElseThrow(() -> new NotFoundException("Progression not found"));
+
+    if (!progression.isExploited()) {
+      throw new BadRequestException("Resource is not exploited");
+    }
+
+    progression.setExploited(false);
+
+    if (!progression.isFavorite() && !progression.isSetAside() && !progression.isExploited()) {
+      progressionRepository.delete(progression);
+    } else {
+      progressionRepository.save(progression);
+    }
+  }
+
+  @Override
+  @Transactional
+  public ProgressionDto getProgression(UUID userId) {
+    final AppUser user =
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+
+    final ProgressionDto progressionDto = new ProgressionDto();
+    progressionDto.setFavoritesCount(
+        progressionRepository.countByAppUserAppUserIdAndFavoriteTrue(userId));
+    progressionDto.setExploitedCount(
+        progressionRepository.countByAppUserAppUserIdAndExploitedTrue(userId));
+    progressionDto.setSetAsideCount(
+        progressionRepository.countByAppUserAppUserIdAndSetAsideTrue(userId));
+
+    return progressionDto;
+  }
+
+  @Override
+  @Transactional
+  public void shareResource(UUID resourceId, UUID friendId, ShareResourceRequestDto request) {
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final Friend friend =
+        friendRepository
+            .findById(friendId)
+            .orElseThrow(() -> new NotFoundException("Friend not found"));
+
+    final UserDto currentUser = userService.getCurrentUser();
+
+    final AppUser sender =
+        userRepository
+            .findById(currentUser.getAppUserId())
+            .orElseThrow(() -> new NotFoundException("Current user not found"));
+
+    final AppUser receiver;
+
+    if (friend
+        .getRequesterUser()
+        .getAppUserId()
+        .equals(
+            currentUser.getAppUserId())) { // connected user = request -> receiver = receiver friend
+      receiver = friend.getReceiverUser();
+    } else if (friend
+        .getReceiverUser()
+        .getAppUserId()
+        .equals(
+            currentUser
+                .getAppUserId())) { // connected user = receiver -> receiver = requester firend
+      receiver = friend.getRequesterUser();
+    } else {
+      throw new BadRequestException("You can't share if you aren't friends");
+    }
+
+    // vérifier que la ressource n'a pas déjà été partagée
+
+    final ShareResource share = new ShareResource();
+    share.setResource(resource);
+    share.setSender(sender);
+    share.setReceiver(receiver);
+    share.setMessage(request.getMessage());
+    share.setSharedAt(Instant.now());
+
+    shareResourceRepository.save(share);
+  }
+
+  @Override
+  public SharedResourceDto getSharedResource(UUID sharedResourceId) {
+    final ShareResource resource =
+        shareResourceRepository
+            .findById(sharedResourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final UserDto currentUser = userService.getCurrentUser();
+    final UUID currentUserId = currentUser.getAppUserId();
+
+    final boolean isSender = resource.getSender().getAppUserId().equals(currentUserId);
+    final boolean isReceiver = resource.getReceiver().getAppUserId().equals(currentUserId);
+
+    if (!isSender && !isReceiver) {
+      throw new BadRequestException("You are not allowed to access this shared resource");
+    }
+
+    return shareResourceMapper.toDto(resource);
+  }
+
+  @Override
+  public void validateResource(UUID resourceId) {
+    final Resource resource =
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
+
+    final UserDto currentUser = userService.getCurrentUser();
+
+    final String roleName =
+        currentUser.getRole() != null ? currentUser.getRole().getRoleName() : "";
+
+    final boolean canValidate =
+        roleName.equals("MODERATOR") || roleName.equals("ADMIN") || roleName.equals("SUPER_ADMIN");
+
+    if (!canValidate) {
+      throw new ForbiddenException("Vous n'êtes pas autorisé à valider cette ressource.");
+    }
+
+    validateStatusTransition(resource.getStatus(), ResourceStatus.PUBLISHED);
+
+    resource.setStatus(ResourceStatus.PUBLISHED);
+    resourceRepository.save(resource);
+  }
+
+  private void validateStatusTransition(ResourceStatus current, ResourceStatus next) {
+    if (current == next) {
+      throw new BadRequestException("Resource already has this status");
+    }
+
+    if (current == ResourceStatus.DRAFT && next != ResourceStatus.PENDING_VALIDATION) {
+      throw new BadRequestException("Draft can only go to pending validation");
+    }
+
+    if (current == ResourceStatus.PENDING_VALIDATION
+        && next != ResourceStatus.PUBLISHED
+        && next != ResourceStatus.RESTRICTED) {
+      throw new BadRequestException("Pending validation can only be published or restricted");
+    }
+
+    if (current == ResourceStatus.PUBLISHED
+        && next != ResourceStatus.ARCHIVED
+        && next != ResourceStatus.RESTRICTED) {
+      throw new BadRequestException("Published can only be archived or restricted");
+    }
+
+    if (current == ResourceStatus.RESTRICTED
+        && next != ResourceStatus.PUBLISHED
+        && next != ResourceStatus.ARCHIVED) {
+      throw new BadRequestException("Restricted can only go to published or archived");
+    }
+
+    if (current == ResourceStatus.ARCHIVED) {
+      throw new BadRequestException("Archived resource cannot be modified");
+    }
+  }
+}
