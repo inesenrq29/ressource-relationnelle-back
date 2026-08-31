@@ -11,3 +11,23 @@ databaseChangeLog:
       file: db/changelog/005_create_category_table.sql
   - include:
       file: db/changelog/006_update_resource_with_category.sql
+  - include:
+      file: db/changelog/007_create_role_table_and_update_app_user.sql
+  - include:
+      file: db/changelog/008_update_enum_in_resource_table.sql
+  - include:
+      file: db/changelog/009_add_resource_type_enum.sql
+  - include:
+      file: db/changelog/010_update_comments_table.sql
+  - include:
+      file: db/changelog/011_create_progression_table.sql
+  - include:
+      file: db/changelog/012_create_share_resource_table.sql
+  - include:
+      file: db/changelog/013_create_many_resource.sql
+  - include:
+      file: db/changelog/014_update_quiz_table.sql
+  - include:
+      file: db/changelog/015_update_activities_table.sql
+  - include:
+      file: db/changelog/016_add_creator_to_resource.sql

@@ -1,0 +1,33 @@
+package com.ienrique.ressourceRelationnelle.repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.stereotype.Repository;
+
+import com.ienrique.ressourceRelationnelle.entity.Resource;
+import com.ienrique.ressourceRelationnelle.entity.ResourceStatus;
+import com.ienrique.ressourceRelationnelle.entity.ResourceType;
+
+@Repository
+public interface ResourceRepository
+    extends JpaRepository<Resource, UUID>, JpaSpecificationExecutor<Resource> {
+
+  Optional<Resource> findByResourceId(UUID resourceId);
+
+  Optional<Resource> findByResourceTitle(String resourceTitle);
+
+  Optional<Resource> findByResourceType(ResourceType type);
+
+  List<Resource> findByCategoryCategoryId(UUID categoryId);
+
+  List<Resource> findByTagsTagId(UUID tagId);
+
+  List<Resource> findAllByStatus(ResourceStatus status);
+
+  List<Resource> findByStatus(
+      ResourceStatus status); // avec en status par exemple RESTRICTED pour ressource restreinte
+}

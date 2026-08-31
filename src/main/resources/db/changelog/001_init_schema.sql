@@ -31,8 +31,26 @@ CREATE TABLE Message (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE Friend (
-    friendId CHAR(36) NOT NULL DEFAULT (UUID()),
-    PRIMARY KEY (friendId)
+  friendId CHAR(36) NOT NULL DEFAULT (UUID()),
+  requesterUserId CHAR(36) NOT NULL,
+  receiverUserId CHAR(36) NOT NULL,
+  status ENUM('PENDING','ACCEPTED','REFUSED') NOT NULL DEFAULT 'PENDING',
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (friendId),
+
+  UNIQUE KEY uq_friend_pair (requesterUserId, receiverUserId),
+
+  CONSTRAINT fk_friend_requester
+    FOREIGN KEY (requesterUserId)
+      REFERENCES AppUser(appUserId)
+      ON DELETE CASCADE
+      ON UPDATE CASCADE,
+
+  CONSTRAINT fk_friend_receiver
+    FOREIGN KEY (receiverUserId)
+      REFERENCES AppUser(appUserId)
+      ON DELETE CASCADE
+      ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE Resource (
@@ -78,20 +96,20 @@ CREATE TABLE HistoryStateResource (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE Favorite (
-    favoriteId CHAR(36) NOT NULL DEFAULT (UUID()),
-    appUserId CHAR(36) NOT NULL,
-    ressourceId CHAR(36) NOT NULL,
-    PRIMARY KEY (favoriteId),
-    CONSTRAINT fk_favorite_appUser
-        FOREIGN KEY (appUserId)
-            REFERENCES AppUser(appUserId)
-            ON DELETE CASCADE
-            ON UPDATE CASCADE,
-    CONSTRAINT fk_favorite_resource
-        FOREIGN KEY (ressourceId)
-            REFERENCES Resource(resourceId)
-            ON DELETE CASCADE
-            ON UPDATE CASCADE
+  favoriteId CHAR(36) NOT NULL DEFAULT (UUID()),
+  appUserId CHAR(36) NOT NULL,
+  ressourceId CHAR(36) NOT NULL,
+  PRIMARY KEY (favoriteId),
+  CONSTRAINT fk_favorite_appUser
+      FOREIGN KEY (appUserId)
+          REFERENCES AppUser(appUserId)
+          ON DELETE CASCADE
+          ON UPDATE CASCADE,
+  CONSTRAINT fk_favorite_resource
+      FOREIGN KEY (ressourceId)
+          REFERENCES Resource(resourceId)
+          ON DELETE CASCADE
+          ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE Tag (
