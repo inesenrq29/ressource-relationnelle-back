@@ -41,23 +41,23 @@ public class CommentaryServiceImpl implements CommentaryService {
   @Transactional(readOnly = true)
   public List<CommentDto> getCommentsForModeration(CommentStatus status) {
     return commentsRepository.findAll().stream()
-            .filter(comment -> status == null || comment.getStatus() == status)
-            .map(commentsMapper::toDto)
-            .toList();
+        .filter(comment -> status == null || comment.getStatus() == status)
+        .map(commentsMapper::toDto)
+        .toList();
   }
 
   @Override
   public CommentDto addComment(UUID userId, UUID resourceId, CreateCommentDto createCommentDto) {
     final AppUser user =
-            userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
 
     final Resource resource =
-            resourceRepository
-                    .findByResourceId(resourceId)
-                    .orElseThrow(() -> new NotFoundException("Resource not found"));
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
 
     if (createCommentDto.getCommentsContent() == null
-            || createCommentDto.getCommentsContent().isBlank()) {
+        || createCommentDto.getCommentsContent().isBlank()) {
       throw new BadRequestException("Comment content is required");
     }
 
@@ -77,27 +77,27 @@ public class CommentaryServiceImpl implements CommentaryService {
 
   @Override
   public CommentDto respondToComment(
-          UUID userId, UUID resourceId, UUID commentsId, CreateCommentDto createCommentDto) {
+      UUID userId, UUID resourceId, UUID commentsId, CreateCommentDto createCommentDto) {
 
     final AppUser user =
-            userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
 
     final Resource resource =
-            resourceRepository
-                    .findByResourceId(resourceId)
-                    .orElseThrow(() -> new NotFoundException("Resource not found"));
+        resourceRepository
+            .findByResourceId(resourceId)
+            .orElseThrow(() -> new NotFoundException("Resource not found"));
 
     final Comments parentComment =
-            commentsRepository
-                    .findByCommentsId(commentsId)
-                    .orElseThrow(() -> new NotFoundException("Comment not found"));
+        commentsRepository
+            .findByCommentsId(commentsId)
+            .orElseThrow(() -> new NotFoundException("Comment not found"));
 
     if (!parentComment.getResource().getResourceId().equals(resourceId)) {
       throw new BadRequestException("Comment does not belong to this resource");
     }
 
     if (createCommentDto.getCommentsContent() == null
-            || createCommentDto.getCommentsContent().isBlank()) {
+        || createCommentDto.getCommentsContent().isBlank()) {
       throw new BadRequestException("Comment content is required");
     }
 
@@ -120,9 +120,9 @@ public class CommentaryServiceImpl implements CommentaryService {
   @Transactional
   public CommentDto moderateComment(UUID commentsId, ModerateCommentDto moderateCommentDto) {
     final Comments comment =
-            commentsRepository
-                    .findByCommentsId(commentsId)
-                    .orElseThrow(() -> new NotFoundException("Comment not found"));
+        commentsRepository
+            .findByCommentsId(commentsId)
+            .orElseThrow(() -> new NotFoundException("Comment not found"));
 
     if (moderateCommentDto.getStatus() == null) {
       throw new BadRequestException("Comment status is required");
@@ -134,7 +134,7 @@ public class CommentaryServiceImpl implements CommentaryService {
 
     if (moderateCommentDto.getStatus() == CommentStatus.REJECTED) {
       if (moderateCommentDto.getModerationReason() == null
-              || moderateCommentDto.getModerationReason().isBlank()) {
+          || moderateCommentDto.getModerationReason().isBlank()) {
         throw new BadRequestException("Moderation reason is required");
       }
 

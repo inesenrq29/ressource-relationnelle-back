@@ -36,19 +36,17 @@ import com.ienrique.ressourceRelationnelle.entity.AppUser;
 import com.ienrique.ressourceRelationnelle.entity.Role;
 import com.ienrique.ressourceRelationnelle.exception.BadRequestException;
 import com.ienrique.ressourceRelationnelle.exception.NotFoundException;
-import com.ienrique.ressourceRelationnelle.mapper.RoleMapper;
 import com.ienrique.ressourceRelationnelle.mapper.UserMapper;
 import com.ienrique.ressourceRelationnelle.repository.AppUserRepository;
-import com.ienrique.ressourceRelationnelle.repository.PasswordRepository;
+import com.ienrique.ressourceRelationnelle.repository.RoleRepository;
 import com.ienrique.ressourceRelationnelle.service.UserServiceImpl;
 
 @ExtendWith(MockitoExtension.class)
 public class UserServiceTest {
 
   @Mock private AppUserRepository userRepository;
-  @Mock private PasswordRepository passwordResetTokenRepository;
+  @Mock private RoleRepository roleRepository;
   @Mock private UserMapper userMapper;
-  @Mock private RoleMapper roleMapper;
   @Mock private PasswordEncoder passwordEncoder;
   @Mock private SecurityContext securityContext;
   @Mock private Authentication authentication;
@@ -318,7 +316,9 @@ public class UserServiceTest {
       expectedDto.setMail("john_doe@test.com");
       expectedDto.setAppUserIsActive(true);
 
-      when(roleMapper.toEntity(roleDto)).thenReturn(role);
+      when(roleRepository.findByRoleName("ADMIN")).thenReturn(Optional.of(role));
+
+      when(passwordEncoder.encode("Password123")).thenReturn("hashed-password");
       when(userRepository.save(any(AppUser.class))).thenReturn(savedUser);
       when(userMapper.toDto(savedUser)).thenReturn(expectedDto);
 
@@ -337,7 +337,8 @@ public class UserServiceTest {
       assertNotNull(userToSave.getCreatedAt());
       assertNotNull(userToSave.getUpdatedAt());
 
-      verify(roleMapper).toEntity(roleDto);
+      verify(roleRepository).findByRoleName("ADMIN");
+      verify(passwordEncoder).encode("Password123");
       verify(userMapper).toDto(savedUser);
     }
 
@@ -350,7 +351,7 @@ public class UserServiceTest {
       assertEquals("Create account payload is required", exception.getMessage());
 
       verify(userRepository, never()).save(any(AppUser.class));
-      verify(roleMapper, never()).toEntity(any(RoleDto.class));
+      verifyNoInteractions(roleRepository);
       verify(userMapper, never()).toDto(any(AppUser.class));
     }
 
@@ -374,7 +375,7 @@ public class UserServiceTest {
       assertEquals("Pseudo is required", exception.getMessage());
 
       verify(userRepository, never()).save(any(AppUser.class));
-      verify(roleMapper, never()).toEntity(any(RoleDto.class));
+      verifyNoInteractions(roleRepository);
       verify(userMapper, never()).toDto(any(AppUser.class));
     }
 
@@ -398,7 +399,7 @@ public class UserServiceTest {
       assertEquals("Pseudo is required", exception.getMessage());
 
       verify(userRepository, never()).save(any(AppUser.class));
-      verify(roleMapper, never()).toEntity(any(RoleDto.class));
+      verifyNoInteractions(roleRepository);
       verify(userMapper, never()).toDto(any(AppUser.class));
     }
 
@@ -418,7 +419,7 @@ public class UserServiceTest {
       assertEquals("Role is required", exception.getMessage());
 
       verify(userRepository, never()).save(any(AppUser.class));
-      verify(roleMapper, never()).toEntity(any(RoleDto.class));
+      verifyNoInteractions(roleRepository);
       verify(userMapper, never()).toDto(any(AppUser.class));
     }
   }

@@ -294,6 +294,9 @@ public class CommentaryServiceTest {
       existingComment.setModerationReason("ancienne raison");
 
       when(commentsRepository.findByCommentsId(commentId)).thenReturn(Optional.of(existingComment));
+
+      when(commentsRepository.save(existingComment)).thenReturn(existingComment);
+
       when(commentsMapper.toDto(existingComment)).thenReturn(approvedDto);
 
       final CommentDto result = commentaryService.moderateComment(commentId, requestDto);
@@ -320,6 +323,9 @@ public class CommentaryServiceTest {
       existingComment.setStatus(CommentStatus.PENDING);
 
       when(commentsRepository.findByCommentsId(commentId)).thenReturn(Optional.of(existingComment));
+
+      when(commentsRepository.save(existingComment)).thenReturn(existingComment);
+
       when(commentsMapper.toDto(existingComment)).thenReturn(rejectedDto);
 
       final CommentDto result = commentaryService.moderateComment(commentId, requestDto);

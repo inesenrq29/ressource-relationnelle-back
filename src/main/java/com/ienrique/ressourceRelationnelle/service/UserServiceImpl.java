@@ -32,7 +32,7 @@ import lombok.RequiredArgsConstructor;
 public class UserServiceImpl implements UserService {
 
   private static final Set<String> ADMIN_CREATED_ROLES =
-          Set.of("MODERATOR", "ADMIN", "SUPER_ADMIN");
+      Set.of("MODERATOR", "ADMIN", "SUPER_ADMIN");
 
   private final AppUserRepository userRepository;
   private final RoleRepository roleRepository;
@@ -44,7 +44,7 @@ public class UserServiceImpl implements UserService {
   public void deleteAccount(UUID userId, DeleteAccountDto deleteAccount) {
     // vérifie que le user existe
     final AppUser user =
-            userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
 
     // vérifie que le mot de passe hashé entré est le même que le mot de passe hashé en BDD
     if (!passwordEncoder.matches(deleteAccount.getPassword(), user.getHashedPassword())) {
@@ -59,7 +59,7 @@ public class UserServiceImpl implements UserService {
   public UserDto getUserById(UUID userId) {
     // vérifie que le user existe
     final AppUser user =
-            userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
 
     // mappe de l'utilisateur actuellement entité en dto pour pouvoir l'envoyer au front
     return userMapper.toDto(user);
@@ -74,7 +74,7 @@ public class UserServiceImpl implements UserService {
 
     // vérifie que le user existe
     final AppUser user =
-            userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
 
     // met à jour le statut
     user.setStatus(status);
@@ -124,9 +124,9 @@ public class UserServiceImpl implements UserService {
     }
 
     final Role role =
-            roleRepository
-                    .findByRoleName(roleName)
-                    .orElseThrow(() -> new NotFoundException("Role not found"));
+        roleRepository
+            .findByRoleName(roleName)
+            .orElseThrow(() -> new NotFoundException("Role not found"));
 
     final AppUser user = new AppUser();
 
@@ -156,7 +156,7 @@ public class UserServiceImpl implements UserService {
   public void updateUser(UUID userId, UpdateUserDto user) {
     // vérifie que le user existe
     final AppUser appUser =
-            userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
 
     // vérifie que le pseudo n'est ni null ni vide
     if (user.getPseudo() != null && !user.getPseudo().isBlank()) {
@@ -182,7 +182,7 @@ public class UserServiceImpl implements UserService {
     final UUID userId = UUID.fromString(jwt.getSubject());
 
     final AppUser user =
-            userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
 
     return userMapper.toDto(user);
   }

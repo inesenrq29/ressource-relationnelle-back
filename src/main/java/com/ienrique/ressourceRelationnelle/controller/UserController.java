@@ -36,8 +36,8 @@ public class UserController {
   @DeleteMapping("/{userId}")
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> deleteAccount(
-          @PathVariable final UUID userId,
-          final @Valid @RequestBody DeleteAccountDto deleteAccountDto) {
+      @PathVariable final UUID userId,
+      final @Valid @RequestBody DeleteAccountDto deleteAccountDto) {
 
     userService.deleteAccount(userId, deleteAccountDto);
 
@@ -55,8 +55,7 @@ public class UserController {
   @PutMapping("/{userId}")
   @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN') or (#userId.toString() == principal.subject)")
   public ResponseEntity<Void> updateUser(
-          @PathVariable final UUID userId,
-          final @Valid @RequestBody UpdateUserDto request) {
+      @PathVariable final UUID userId, final @Valid @RequestBody UpdateUserDto request) {
 
     userService.updateUser(userId, request);
 
@@ -66,8 +65,7 @@ public class UserController {
   @PatchMapping("/{userId}/status")
   @PreAuthorize("hasRole('SUPER_ADMIN')")
   public ResponseEntity<Void> updateUserStatus(
-          @PathVariable final UUID userId,
-          final @RequestBody AccountStatus status) {
+      @PathVariable final UUID userId, final @RequestBody AccountStatus status) {
 
     userService.updateUserStatus(userId, status);
 
@@ -93,7 +91,7 @@ public class UserController {
   @PostMapping("/with-role")
   @PreAuthorize("hasRole('SUPER_ADMIN')")
   public ResponseEntity<UserDto> createAccountWithRole(
-          final @RequestBody @Valid CreateAccountDto createAccountDto) {
+      final @RequestBody @Valid CreateAccountDto createAccountDto) {
 
     final UserDto createdUser = userService.createAccountWithRole(createAccountDto);
 

@@ -26,12 +26,12 @@ public class CommentaryController {
 
   @GetMapping("/resources/{resourceId}")
   public ResponseEntity<List<CommentDto>> getCommentsByResource(
-          final @PathVariable UUID resourceId) {
+      final @PathVariable UUID resourceId) {
 
     final List<CommentDto> response =
-            commentaryService.getCommentsByResourceId(resourceId).stream()
-                    .filter(comment -> comment.getStatus() == CommentStatus.APPROVED)
-                    .toList();
+        commentaryService.getCommentsByResourceId(resourceId).stream()
+            .filter(comment -> comment.getStatus() == CommentStatus.APPROVED)
+            .toList();
 
     return ResponseEntity.ok(response);
   }
@@ -39,7 +39,7 @@ public class CommentaryController {
   @GetMapping("/moderation")
   @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<List<CommentDto>> getCommentsForModeration(
-          @RequestParam(required = false) final CommentStatus status) {
+      @RequestParam(required = false) final CommentStatus status) {
 
     final List<CommentDto> response = commentaryService.getCommentsForModeration(status);
 
@@ -48,12 +48,12 @@ public class CommentaryController {
 
   @PostMapping("/{userId}/resources/{resourceId}")
   @PreAuthorize(
-          "hasAnyRole('USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN') "
-                  + "and (#userId.toString() == principal.subject)")
+      "hasAnyRole('USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN') "
+          + "and (#userId.toString() == principal.subject)")
   public ResponseEntity<CommentDto> addComment(
-          final @PathVariable UUID userId,
-          final @PathVariable UUID resourceId,
-          final @Valid @RequestBody CreateCommentDto requestDto) {
+      final @PathVariable UUID userId,
+      final @PathVariable UUID resourceId,
+      final @Valid @RequestBody CreateCommentDto requestDto) {
 
     final CommentDto response = commentaryService.addComment(userId, resourceId, requestDto);
 
@@ -62,16 +62,16 @@ public class CommentaryController {
 
   @PostMapping("/{userId}/resources/{resourceId}/{commentsId}/reply")
   @PreAuthorize(
-          "hasAnyRole('USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN') "
-                  + "and (#userId.toString() == principal.subject)")
+      "hasAnyRole('USER', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN') "
+          + "and (#userId.toString() == principal.subject)")
   public ResponseEntity<CommentDto> respondToComment(
-          final @PathVariable UUID userId,
-          final @PathVariable UUID resourceId,
-          final @PathVariable UUID commentsId,
-          final @Valid @RequestBody CreateCommentDto requestDto) {
+      final @PathVariable UUID userId,
+      final @PathVariable UUID resourceId,
+      final @PathVariable UUID commentsId,
+      final @Valid @RequestBody CreateCommentDto requestDto) {
 
     final CommentDto response =
-            commentaryService.respondToComment(userId, resourceId, commentsId, requestDto);
+        commentaryService.respondToComment(userId, resourceId, commentsId, requestDto);
 
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
@@ -79,8 +79,8 @@ public class CommentaryController {
   @PatchMapping("/{commentsId}/moderate")
   @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN', 'SUPER_ADMIN')")
   public ResponseEntity<CommentDto> moderateComment(
-          final @PathVariable UUID commentsId,
-          final @Valid @RequestBody ModerateCommentDto requestDto) {
+      final @PathVariable UUID commentsId,
+      final @Valid @RequestBody ModerateCommentDto requestDto) {
 
     final CommentDto response = commentaryService.moderateComment(commentsId, requestDto);
 
