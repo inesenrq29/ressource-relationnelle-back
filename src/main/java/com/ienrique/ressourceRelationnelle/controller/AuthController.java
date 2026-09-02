@@ -2,6 +2,7 @@ package com.ienrique.ressourceRelationnelle.controller;
 
 import java.time.Duration;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -27,6 +28,15 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+
+  @Value("${security.refresh-cookie.secure}")
+  private boolean refreshCookieSecure;
+
+  @Value("${security.refresh-cookie.same-site}")
+  private String refreshCookieSameSite;
+
+  @Value("${security.refresh-cookie.path}")
+  private String refreshCookiePath;
 
   private final AuthService authService;
 
@@ -129,10 +139,10 @@ public class AuthController {
     final ResponseCookie cookie =
         ResponseCookie.from("refreshToken", refreshToken)
             .httpOnly(true)
-            .secure(false) // TODO: mettre true en prod
-            .path("/")
+            .secure(refreshCookieSecure)
+            .path(refreshCookiePath)
             .maxAge(Duration.ofDays(7))
-            .sameSite("Lax")
+            .sameSite(refreshCookieSameSite)
             .build();
 
     response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
@@ -143,10 +153,10 @@ public class AuthController {
     final ResponseCookie cookie =
         ResponseCookie.from("refreshToken", "")
             .httpOnly(true)
-            .secure(false) // TODO: mettre true en prod
-            .path("/")
+            .secure(refreshCookieSecure)
+            .path(refreshCookiePath)
             .maxAge(0)
-            .sameSite("Lax")
+            .sameSite(refreshCookieSameSite)
             .build();
 
     response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
