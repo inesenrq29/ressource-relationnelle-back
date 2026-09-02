@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -17,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -33,6 +35,12 @@ import com.ienrique.ressourceRelationnelle.service.AuthService;
 import jakarta.servlet.http.Cookie;
 
 @WebMvcTest(AuthController.class)
+@TestPropertySource(
+    properties = {
+      "security.refresh-cookie.secure=true",
+      "security.refresh-cookie.same-site=None",
+      "security.refresh-cookie.path=/api/auth"
+    })
 @ContextConfiguration(classes = RessourceRelationnelleApplication.class)
 public class AuthControllerTest {
   @Autowired private MockMvc mockMvc;
@@ -60,6 +68,7 @@ public class AuthControllerTest {
           .perform(
               post("/api/auth/register")
                   .with(jwt())
+                  .with(csrf())
                   .content(objectMapper.writeValueAsString(requestDto))
                   .contentType(MediaType.APPLICATION_JSON)
                   .header("User-Agent", "test")
@@ -85,6 +94,7 @@ public class AuthControllerTest {
           .perform(
               post("/api/auth/register")
                   .with(jwt())
+                  .with(csrf())
                   .content(objectMapper.writeValueAsString(requestDto))
                   .contentType(MediaType.APPLICATION_JSON)
                   .header("User-Agent", "test")
@@ -114,6 +124,7 @@ public class AuthControllerTest {
           .perform(
               post("/api/auth/login")
                   .with(jwt())
+                  .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(objectMapper.writeValueAsString(requestDto))
                   .header("User-Agent", "test")
@@ -140,6 +151,7 @@ public class AuthControllerTest {
           .perform(
               post("/api/auth/logout")
                   .with(jwt())
+                  .with(csrf())
                   .cookie(new Cookie("refreshToken", "refresh-token")))
           .andExpect(status().isNoContent());
     }
@@ -156,6 +168,7 @@ public class AuthControllerTest {
           .perform(
               post("/api/auth/logout")
                   .with(jwt())
+                  .with(csrf())
                   .cookie(new Cookie("refreshToken", "refresh-token")))
           .andExpect(status().isBadRequest());
     }
@@ -177,6 +190,7 @@ public class AuthControllerTest {
           .perform(
               post("/api/auth/refresh-token")
                   .with(jwt())
+                  .with(csrf())
                   .cookie(new Cookie("refreshToken", "refresh-token"))
                   .header("User-Agent", "test")
                   .contentType(MediaType.APPLICATION_JSON)

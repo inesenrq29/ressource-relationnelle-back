@@ -1,14 +1,17 @@
 package com.ienrique.ressourceRelationnelle.utils;
 
+import java.util.List;
+import java.util.Set;
+
 import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -18,12 +21,17 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
   private static final String ROLE_PREFIX = "ROLE_";
+  private static final Set<String> SAFE_HTTP_METHODS = Set.of("GET", "HEAD", "OPTIONS", "TRACE");
 
   @Bean
   public JwtAuthenticationConverter jwtAuthenticationConverter() { // extracts roles
@@ -57,10 +65,25 @@ public class SecurityConfig {
   }
 
   @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http.csrf(
-            AbstractHttpConfigurer
-                ::disable) // disable CSRF protection (useless with JWT cause no cookies)
+  public SecurityFilterChain securityFilterChain(
+      HttpSecurity http,
+      @Value("${security.refresh-cookie.secure}") boolean cookieSecure,
+      @Value("${security.refresh-cookie.same-site}") String cookieSameSite)
+      throws Exception {
+
+    final CookieCsrfTokenRepository csrfTokenRepository = new CookieCsrfTokenRepository();
+    csrfTokenRepository.setCookieCustomizer(
+        cookieBuilder ->
+            cookieBuilder.httpOnly(true).secure(cookieSecure).sameSite(cookieSameSite).path("/"));
+
+    http.cors(Customizer.withDefaults())
+        .csrf(
+            csrf ->
+                csrf.csrfTokenRepository(csrfTokenRepository)
+                    .requireCsrfProtectionMatcher(
+                        request ->
+                            !SAFE_HTTP_METHODS.contains(request.getMethod())
+                                && request.getServletPath().startsWith("/api/auth/")))
         .sessionManagement(
             sm ->
                 sm.sessionCreationPolicy(
@@ -74,7 +97,8 @@ public class SecurityConfig {
                     .requestMatchers(
                         HttpMethod.POST, "/api/password/reset-request", "/api/password/reset")
                     .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/resources", "/api/resources/**")
+                    .requestMatchers(
+                        HttpMethod.GET, "/api/resources", "/api/resources/**", "/api/csrf")
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**")
                     .permitAll()
@@ -95,5 +119,28 @@ public class SecurityConfig {
     final SecretKeySpec key =
         new SecretKeySpec(secret.getBytes(), "HmacSHA256"); // create secret key from yaml value
     return NimbusJwtDecoder.withSecretKey(key).build(); // decode signed JWT with HMAC SHA256
+  }
+
+  @Bean
+  public CorsConfigurationSource corsConfigurationSource(
+      @Value("${app.cors.allowed-origins}") final List<String> allowedOrigins) {
+
+    final CorsConfiguration configuration = new CorsConfiguration();
+
+    // authorize front to call back
+    configuration.setAllowedOrigins(allowedOrigins);
+
+    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+
+    configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-XSRF-TOKEN"));
+
+    // authorize sending cookies like refresh token
+    configuration.setAllowCredentials(true);
+
+    final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+    source.registerCorsConfiguration("/**", configuration);
+
+    return source;
   }
 }
