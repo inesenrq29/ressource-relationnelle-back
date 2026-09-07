@@ -23,3 +23,7 @@ security:
   jwt:
     access-token-ttl-minutes: 15
     refresh-token-ttl-days: 7
+
+springdoc:
+  api-docs:
+    enabled: false
