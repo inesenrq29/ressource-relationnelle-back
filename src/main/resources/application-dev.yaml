@@ -13,8 +13,8 @@ app:
 
 security:
   refresh-cookie:
-    secure: true
-    same-site: None
+    secure: false
+    same-site: Lax
     path: /api/auth
   jwt:
     secret: ${JWT_SECRET}
