@@ -94,6 +94,8 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers("/api/auth/**")
                     .permitAll()
+                    .requestMatchers("/actuator/health/**", "/actuator/prometheus")
+                    .permitAll()
                     .requestMatchers(
                         HttpMethod.POST, "/api/password/reset-request", "/api/password/reset")
                     .permitAll()
