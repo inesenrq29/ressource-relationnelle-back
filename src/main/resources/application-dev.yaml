@@ -21,3 +21,7 @@ security:
 
 server:
   port: ${SERVER_PORT:8080}
+
+springdoc:
+  api-docs:
+    enabled: true
