@@ -11,7 +11,7 @@ import lombok.Setter;
 public class ActivityMessageDto {
 
   private UUID activityMessageId;
-  private UUID senderId;;
+  private UUID senderId;
   private String SenderUsername;
   private String content;
   private Instant sentAt;
